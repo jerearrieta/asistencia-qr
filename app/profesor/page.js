@@ -9,10 +9,16 @@ export default async function ProfesorPage() {
     .select("*")
     .order("created_at", { ascending: false });
 
+  const { data: clases } = await supabaseAdmin
+    .from("clases")
+    .select("*, cursos(nombre)")
+    .order("fecha", { ascending: false })
+    .limit(30);
+
   return (
     <div>
       <h1>Panel del profesor</h1>
-      <PanelProfesor cursosIniciales={cursos || []} />
+      <PanelProfesor cursosIniciales={cursos || []} clasesIniciales={clases || []} />
     </div>
   );
 }

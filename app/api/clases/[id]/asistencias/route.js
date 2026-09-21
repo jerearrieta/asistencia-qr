@@ -1,6 +1,25 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+const ZONA_HORARIA = "America/Argentina/Cordoba";
+
+function formatearFechaLocal(iso) {
+  return new Date(iso).toLocaleString("es-AR", {
+    timeZone: ZONA_HORARIA,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
+function celdaCsv(valor) {
+  return `"${String(valor ?? "").replace(/"/g, '""')}"`;
+}
+
 export async function GET(request, { params }) {
   const claseId = params.id;
   const { searchParams } = new URL(request.url);
@@ -27,16 +46,19 @@ export async function GET(request, { params }) {
   }
 
   if (formato === "csv") {
-    const encabezado = "dni_alumno,nombre_alumno,metodo,registrado_en\n";
+    const encabezado = ["DNI/Legajo", "Nombre", "Método", "Fecha y hora"]
+      .map(celdaCsv)
+      .join(";");
+
     const filas = asistencias
-      .map(
-        (a) =>
-          `${a.dni_alumno},${(a.nombre_alumno || "").replace(/,/g, " ")},${
-            a.metodo
-          },${a.registrado_en}`
+      .map((a) =>
+        [a.dni_alumno, a.nombre_alumno || "", a.metodo, formatearFechaLocal(a.registrado_en)]
+          .map(celdaCsv)
+          .join(";")
       )
       .join("\n");
-    const csv = encabezado + filas;
+
+    const csv = `\uFEFFsep=;\n${encabezado}\n${filas}`;
 
     return new NextResponse(csv, {
       status: 200,
