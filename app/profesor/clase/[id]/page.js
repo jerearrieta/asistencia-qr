@@ -1,8 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import ClaseEnVivo from "@/components/ClaseEnVivo";
-import Link from "next/link";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function ClasePage({ params }) {
   const { data: clase, error } = await supabaseAdmin
@@ -15,7 +15,7 @@ export default async function ClasePage({ params }) {
     return (
       <div>
         <p className="mensaje-error">No se encontró la clase.</p>
-        <Link href="/profesor">Volver</Link>
+        <a href="/profesor">Volver</a>
       </div>
     );
   }
@@ -23,7 +23,7 @@ export default async function ClasePage({ params }) {
   return (
     <div>
       <p>
-        <Link href="/profesor">&larr; Volver al panel</Link>
+        <a href="/profesor">&larr; Volver al panel</a>
       </p>
       <h1>{clase.cursos?.nombre}</h1>
       <p>Mostrale esta pantalla o tu celular a los alumnos.</p>

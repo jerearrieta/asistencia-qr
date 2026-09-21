@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
   const [cursos, setCursos] = useState(cursosIniciales || []);
@@ -12,7 +10,6 @@ export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
   const [nombreEditado, setNombreEditado] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
-  const router = useRouter();
 
   async function crearCurso(e) {
     e.preventDefault();
@@ -51,7 +48,7 @@ export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
       setError(data.error || "Error al abrir la clase");
       return;
     }
-    router.push(`/profesor/clase/${data.clase.id}`);
+    window.location.href = `/profesor/clase/${data.clase.id}`;
   }
 
   function empezarEdicion(curso) {
@@ -202,21 +199,17 @@ export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
             }}
           >
             <span>
-              {c.cursos?.nombre} — {new Date(c.fecha).toLocaleDateString("es-AR")} {" "}
-              <strong
-                style={{ color: c.estado === "abierta" ? "#16a34a" : "#6b7280" }}
-              >
+              {c.cursos?.nombre} —{" "}
+              {new Date(c.fecha).toLocaleDateString("es-AR")}{" "}
+              <strong style={{ color: c.estado === "abierta" ? "#16a34a" : "#6b7280" }}>
                 ({c.estado === "abierta" ? "Abierta" : "Cerrada"})
               </strong>
             </span>
             <div style={{ display: "flex", gap: 6 }}>
-              <Link className="btn secondary" href={`/profesor/clase/${c.id}`}>
-                Ver
-              </Link>
-              <a
-                className="btn secondary"
-                href={`/api/clases/${c.id}/asistencias?formato=csv`}
-              >
+              <a className="btn secondary" href={`/profesor/clase/${c.id}`}>Ver</a>
+              className="btn secondary"
+              href={`/api/clases/${c.id}/asistencias?formato=csv`}
+              <a>
                 CSV
               </a>
             </div>

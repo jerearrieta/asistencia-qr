@@ -9,9 +9,9 @@ export default function Home() {
       <div className="card">
         <h3>Soy profesor</h3>
         <p>Crear cursos, abrir clases y generar el QR / código de asistencia.</p>
-        <Link className="btn" href="/profesor" prefetch={false}>
+        <a className="btn" href="/profesor">
           Ir al panel del profesor
-        </Link>
+        </a>
       </div>
 
       <div className="card">
