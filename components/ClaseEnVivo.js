@@ -82,7 +82,7 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
               <QRCode value={urlQr} size={220} />
             </div>
             <p style={{ textAlign: "center" }}>
-              O escribí este código en <code>/asistencia</code>:
+              O pasales el siguiente codigo:
             </p>
             <div className="token-grande">{clase.token}</div>
             <p style={{ textAlign: "center", color: "#666" }}>
