@@ -2,6 +2,16 @@
 
 import { useState } from "react";
 
+const ZONA_HORARIA = "America/Argentina/Cordoba";
+
+function esDeHoy(fechaIso) {
+  const hoy = new Date().toLocaleDateString("en-CA", { timeZone: ZONA_HORARIA });
+  const fecha = new Date(fechaIso).toLocaleDateString("en-CA", {
+    timeZone: ZONA_HORARIA,
+  });
+  return hoy === fecha;
+}
+
 export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
   const [cursos, setCursos] = useState(cursosIniciales || []);
   const [clases] = useState(clasesIniciales || []);
@@ -116,72 +126,84 @@ export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
       <div className="card">
         <h3>Mis cursos</h3>
         {cursos.length === 0 && <p>Todavía no creaste ningún curso.</p>}
-        {cursos.map((curso) => (
-          <div
-            key={curso.id}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 8,
-              padding: "8px 0",
-              borderBottom: "1px solid #eee",
-            }}
-          >
-            {editandoId === curso.id ? (
-              <>
-                <input
-                  style={{ margin: 0 }}
-                  value={nombreEditado}
-                  onChange={(e) => setNombreEditado(e.target.value)}
-                  autoFocus
-                />
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button
-                    className="btn"
-                    disabled={cargando}
-                    onClick={() => guardarEdicion(curso.id)}
-                  >
-                    Guardar
-                  </button>
-                  <button
-                    className="btn secondary"
-                    onClick={() => setEditandoId(null)}
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <span>{curso.nombre}</span>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button
-                    className="btn"
-                    disabled={cargando}
-                    onClick={() => abrirClase(curso.id)}
-                  >
-                    Abrir clase de hoy
-                  </button>
-                  <button
-                    className="btn secondary"
-                    disabled={cargando}
-                    onClick={() => empezarEdicion(curso)}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    className="btn danger"
-                    disabled={cargando}
-                    onClick={() => eliminarCurso(curso)}
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        ))}
+        {cursos.map((curso) => {
+          // Clase de HOY para este curso (si existe)
+          const claseDeHoy = clases.find(
+            (c) => c.curso_id === curso.id && esDeHoy(c.fecha)
+          );
+          // Si la clase de hoy ya está cerrada, este curso se oculta acá
+          // (queda visible solo en "Clases recientes", con la opción de reabrir).
+          if (claseDeHoy?.estado === "cerrada") return null;
+
+          return (
+            <div
+              key={curso.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 0",
+                borderBottom: "1px solid #eee",
+              }}
+            >
+              {editandoId === curso.id ? (
+                <>
+                  <input
+                    style={{ margin: 0 }}
+                    value={nombreEditado}
+                    onChange={(e) => setNombreEditado(e.target.value)}
+                    autoFocus
+                  />
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      className="btn"
+                      disabled={cargando}
+                      onClick={() => guardarEdicion(curso.id)}
+                    >
+                      Guardar
+                    </button>
+                    <button
+                      className="btn secondary"
+                      onClick={() => setEditandoId(null)}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span>{curso.nombre}</span>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      className="btn"
+                      disabled={cargando}
+                      onClick={() => abrirClase(curso.id)}
+                    >
+                      {claseDeHoy?.estado === "abierta"
+                        ? "Continuar clase abierta"
+                        : "Abrir clase de hoy"}
+                    </button>
+                    <button
+                      className="btn secondary"
+                      disabled={cargando}
+                      onClick={() => empezarEdicion(curso)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      className="btn danger"
+                      disabled={cargando}
+                      onClick={() => eliminarCurso(curso)}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <div className="card">
@@ -206,10 +228,10 @@ export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
               </strong>
             </span>
             <div style={{ display: "flex", gap: 6 }}>
-              <a className="btn secondary" href={`/profesor/clase/${c.id}`}>Ver</a>
-              className="btn secondary"
-              href={`/api/clases/${c.id}/asistencias?formato=csv`}
-              <a>
+              <a className="btn secondary" href={`/profesor/clase/${c.id}`}>
+                Ver
+              </a>
+              <a className="btn secondary" href={`/api/clases/${c.id}/asistencias?formato=csv`}>
                 CSV
               </a>
             </div>

@@ -7,14 +7,13 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
   const [clase, setClase] = useState(claseInicial);
   const [asistencias, setAsistencias] = useState([]);
   const [segundosRestantes, setSegundosRestantes] = useState(0);
-  const [cerrando, setCerrando] = useState(false);
+  const [cargando, setCargando] = useState(false);
 
   const urlQr = useMemo(() => {
     if (typeof window === "undefined") return "";
     return `${window.location.origin}/asistencia/${clase.id}/${clase.token}`;
   }, [clase.id, clase.token]);
 
-  // Countdown de expiración
   useEffect(() => {
     const actualizar = () => {
       const restante = Math.max(
@@ -30,7 +29,6 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
     return () => clearInterval(id);
   }, [clase.token_expira_en]);
 
-  // Polling de asistencias registradas (para verlas en vivo)
   useEffect(() => {
     let activo = true;
     async function cargar() {
@@ -50,14 +48,26 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
   }, [clase.id]);
 
   async function cerrarClase() {
-    setCerrando(true);
+    setCargando(true);
     const res = await fetch("/api/clases/cerrar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ claseId: clase.id }),
     });
     const data = await res.json();
-    setCerrando(false);
+    setCargando(false);
+    if (res.ok) setClase(data.clase);
+  }
+
+  async function reabrirClase() {
+    setCargando(true);
+    const res = await fetch("/api/clases/reabrir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ claseId: clase.id }),
+    });
+    const data = await res.json();
+    setCargando(false);
     if (res.ok) setClase(data.clase);
   }
 
@@ -82,17 +92,24 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
               <button
                 className="btn danger"
                 onClick={cerrarClase}
-                disabled={cerrando}
+                disabled={cargando}
               >
                 Cerrar toma de asistencia ahora
               </button>
             </div>
           </>
         ) : (
-          <p className="mensaje-error" style={{ textAlign: "center" }}>
-            Esta clase ya está cerrada. El código {clase.token} ya no es
-            válido.
-          </p>
+          <>
+            <p className="mensaje-error" style={{ textAlign: "center" }}>
+              Esta clase está cerrada. El código {clase.token} no es válido
+              hasta que la reabras.
+            </p>
+            <div style={{ textAlign: "center", marginTop: 12 }}>
+              <button className="btn" onClick={reabrirClase} disabled={cargando}>
+                Reabrir clase
+              </button>
+            </div>
+          </>
         )}
       </div>
 
@@ -105,10 +122,7 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
           }}
         >
           <h3>Presentes ({asistencias.length})</h3>
-          <a
-            className="btn secondary"
-            href={`/api/clases/${clase.id}/asistencias?formato=csv`}
-          >
+          <a className="btn secondary" href={`/api/clases/${clase.id}/asistencias?formato=csv`}>
             Exportar CSV
           </a>
         </div>
