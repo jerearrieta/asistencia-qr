@@ -14,8 +14,6 @@ export async function POST(request) {
     Date.now() + minutosDeExpiracion() * 60 * 1000
   ).toISOString();
 
-  // Reactiva la MISMA clase (mismo id, mismo token), solo le renueva
-  // el vencimiento y la vuelve a marcar como abierta.
   const { data, error } = await supabaseAdmin
     .from("clases")
     .update({ estado: "abierta", token_expira_en: expiraEn })

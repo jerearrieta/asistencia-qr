@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "react-qr-code";
+import { claseEstaAbierta } from "@/lib/estadoClase";
 
 export default function ClaseEnVivo({ clase: claseInicial }) {
   const [clase, setClase] = useState(claseInicial);
   const [asistencias, setAsistencias] = useState([]);
   const [segundosRestantes, setSegundosRestantes] = useState(0);
   const [cargando, setCargando] = useState(false);
+  const [editandoTitulo, setEditandoTitulo] = useState(false);
+  const [tituloEditado, setTituloEditado] = useState(clase.cursos?.nombre || "");
+  const cierreDisparado = useRef(false);
 
   const urlQr = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -28,6 +32,26 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
     const id = setInterval(actualizar, 1000);
     return () => clearInterval(id);
   }, [clase.token_expira_en]);
+
+  useEffect(() => {
+    if (
+      clase.estado === "abierta" &&
+      segundosRestantes === 0 &&
+      !cierreDisparado.current
+    ) {
+      cierreDisparado.current = true;
+      fetch("/api/clases/cerrar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ claseId: clase.id }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.clase) setClase(data.clase);
+        })
+        .catch(() => {});
+    }
+  }, [segundosRestantes, clase.estado, clase.id]);
 
   useEffect(() => {
     let activo = true;
@@ -61,6 +85,7 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
 
   async function reabrirClase() {
     setCargando(true);
+    cierreDisparado.current = false;
     const res = await fetch("/api/clases/reabrir", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -71,10 +96,66 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
     if (res.ok) setClase(data.clase);
   }
 
-  const estaAbierta = clase.estado === "abierta" && segundosRestantes > 0;
+  async function guardarTitulo() {
+    if (!tituloEditado.trim()) return;
+    setCargando(true);
+    const res = await fetch(`/api/cursos/${clase.curso_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre: tituloEditado }),
+    });
+    const data = await res.json();
+    setCargando(false);
+    if (res.ok) {
+      setClase({ ...clase, cursos: { ...clase.cursos, nombre: data.curso.nombre } });
+      setEditandoTitulo(false);
+    }
+  }
+
+  const estaAbierta = claseEstaAbierta(clase) && segundosRestantes > 0;
 
   return (
     <div>
+      {editandoTitulo ? (
+        <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+          <input
+            style={{ margin: 0 }}
+            value={tituloEditado}
+            onChange={(e) => setTituloEditado(e.target.value)}
+            autoFocus
+          />
+          <button className="btn" disabled={cargando} onClick={guardarTitulo}>
+            Guardar
+          </button>
+          <button
+            className="btn secondary"
+            onClick={() => setEditandoTitulo(false)}
+          >
+            Cancelar
+          </button>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 12,
+          }}
+        >
+          <h2 style={{ margin: 0 }}>{clase.cursos?.nombre}</h2>
+          <button
+            className="btn secondary"
+            onClick={() => {
+              setTituloEditado(clase.cursos?.nombre || "");
+              setEditandoTitulo(true);
+            }}
+          >
+            Editar título
+          </button>
+        </div>
+      )}
+
       <div className="card">
         {estaAbierta ? (
           <>
@@ -82,7 +163,7 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
               <QRCode value={urlQr} size={220} />
             </div>
             <p style={{ textAlign: "center" }}>
-              O pasales el siguiente codigo:
+              O escribí este código en <code>/asistencia</code>:
             </p>
             <div className="token-grande">{clase.token}</div>
             <p style={{ textAlign: "center", color: "#666" }}>
@@ -105,7 +186,11 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
               hasta que la reabras.
             </p>
             <div style={{ textAlign: "center", marginTop: 12 }}>
-              <button className="btn" onClick={reabrirClase} disabled={cargando}>
+              <button
+                className="btn"
+                onClick={reabrirClase}
+                disabled={cargando}
+              >
                 Reabrir clase
               </button>
             </div>
@@ -122,7 +207,7 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
           }}
         >
           <h3>Presentes ({asistencias.length})</h3>
-          <a className="btn secondary" href={`/api/clases/${clase.id}/asistencias?formato=csv`}>
+          <a className="btn secondary" href={`/api/clases/${clase.id}/asistencias.csv`} target="_blank" rel="noopener noreferrer">
             Exportar CSV
           </a>
         </div>

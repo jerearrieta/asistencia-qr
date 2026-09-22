@@ -29,7 +29,6 @@ export default async function ClasePage({ params }) {
       <p>
         <a href="/profesor">&larr; Volver al panel</a>
       </p>
-      <h1>{clase.cursos?.nombre}</h1>
       <p>Mostrale esta pantalla o tu celular a los alumnos.</p>
       <ClaseEnVivo clase={clase} />
     </div>

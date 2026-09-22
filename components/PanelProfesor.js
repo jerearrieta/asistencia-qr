@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { claseEstaAbierta } from "@/lib/estadoClase";
 
 const ZONA_HORARIA = "America/Argentina/Cordoba";
 
@@ -14,7 +15,7 @@ function esDeHoy(fechaIso) {
 
 export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
   const [cursos, setCursos] = useState(cursosIniciales || []);
-  const [clases] = useState(clasesIniciales || []);
+  const [clases, setClases] = useState(clasesIniciales || []);
   const [nombreCurso, setNombreCurso] = useState("");
   const [editandoId, setEditandoId] = useState(null);
   const [nombreEditado, setNombreEditado] = useState("");
@@ -83,6 +84,13 @@ export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
       return;
     }
     setCursos(cursos.map((c) => (c.id === cursoId ? data.curso : c)));
+    setClases(
+      clases.map((c) =>
+        c.curso_id === cursoId
+          ? { ...c, cursos: { ...c.cursos, nombre: data.curso.nombre } }
+          : c
+      )
+    );
     setEditandoId(null);
   }
 
@@ -103,6 +111,28 @@ export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
       return;
     }
     setCursos(cursos.filter((c) => c.id !== curso.id));
+    setClases(clases.filter((c) => c.curso_id !== curso.id));
+  }
+
+  async function eliminarClase(clase) {
+    const confirmado = window.confirm(
+      `¿Eliminar este registro de clase (${clase.cursos?.nombre} — ${new Date(
+        clase.fecha
+      ).toLocaleDateString("es-AR")})? Esto borra también las asistencias de esa clase.`
+    );
+    if (!confirmado) return;
+
+    setError("");
+    setCargando(true);
+    const res = await fetch(`/api/clases/${clase.id}`, { method: "DELETE" });
+    setCargando(false);
+
+    if (!res.ok) {
+      const data = await res.json();
+      setError(data.error || "Error al eliminar la clase");
+      return;
+    }
+    setClases(clases.filter((c) => c.id !== clase.id));
   }
 
   return (
@@ -127,13 +157,10 @@ export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
         <h3>Mis cursos</h3>
         {cursos.length === 0 && <p>Todavía no creaste ningún curso.</p>}
         {cursos.map((curso) => {
-          // Clase de HOY para este curso (si existe)
           const claseDeHoy = clases.find(
             (c) => c.curso_id === curso.id && esDeHoy(c.fecha)
           );
-          // Si la clase de hoy ya está cerrada, este curso se oculta acá
-          // (queda visible solo en "Clases recientes", con la opción de reabrir).
-          if (claseDeHoy?.estado === "cerrada") return null;
+          if (claseDeHoy && !claseEstaAbierta(claseDeHoy)) return null;
 
           return (
             <div
@@ -175,15 +202,15 @@ export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
                 <>
                   <span>{curso.nombre}</span>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button
-                      className="btn"
-                      disabled={cargando}
-                      onClick={() => abrirClase(curso.id)}
-                    >
-                      {claseDeHoy?.estado === "abierta"
-                        ? "Continuar clase abierta"
-                        : "Abrir clase de hoy"}
-                    </button>
+                    {!claseDeHoy && (
+                      <button
+                        className="btn"
+                        disabled={cargando}
+                        onClick={() => abrirClase(curso.id)}
+                      >
+                        Abrir clase de hoy
+                      </button>
+                    )}
                     <button
                       className="btn secondary"
                       disabled={cargando}
@@ -223,17 +250,27 @@ export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
             <span>
               {c.cursos?.nombre} —{" "}
               {new Date(c.fecha).toLocaleDateString("es-AR")}{" "}
-              <strong style={{ color: c.estado === "abierta" ? "#16a34a" : "#6b7280" }}>
-                ({c.estado === "abierta" ? "Abierta" : "Cerrada"})
+              <strong
+                style={{ color: claseEstaAbierta(c) ? "#16a34a" : "#6b7280" }}
+              >
+                ({claseEstaAbierta(c) ? "Abierta" : "Cerrada"})
               </strong>
             </span>
             <div style={{ display: "flex", gap: 6 }}>
               <a className="btn secondary" href={`/profesor/clase/${c.id}`}>
                 Ver
               </a>
-              <a className="btn secondary" href={`/api/clases/${c.id}/asistencias?formato=csv`}>
+              <a className="btn secondary" href={`/api/clases/${c.id}/asistencias?formato=csv`} target="_blank" rel="noopener noreferrer">
                 CSV
               </a>
+              <button
+                className="btn danger"
+                disabled={cargando}
+                onClick={() => eliminarClase(c)}
+                title="Eliminar esta clase"
+              >
+                🗑
+              </button>
             </div>
           </div>
         ))}
