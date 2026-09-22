@@ -18,8 +18,16 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
     return `${window.location.origin}/asistencia/${clase.id}/${clase.token}`;
   }, [clase.id, clase.token]);
 
+  // Un solo efecto que, en cada tick, calcula el tiempo restante DIRECTO
+  // desde clase.token_expira_en (nunca desde el segundosRestantes viejo).
+  // Esto evita la condición de carrera de tener dos efectos separados:
+  // si dependiéramos del estado anterior, justo después de reabrir la
+  // clase el contador podía seguir en 0 por una fracción de segundo y
+  // disparar un auto-cierre inmediato.
   useEffect(() => {
-    const actualizar = () => {
+    let cancelado = false;
+
+    const tick = () => {
       const restante = Math.max(
         0,
         Math.floor(
@@ -27,31 +35,33 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
         )
       );
       setSegundosRestantes(restante);
-    };
-    actualizar();
-    const id = setInterval(actualizar, 1000);
-    return () => clearInterval(id);
-  }, [clase.token_expira_en]);
 
-  useEffect(() => {
-    if (
-      clase.estado === "abierta" &&
-      segundosRestantes === 0 &&
-      !cierreDisparado.current
-    ) {
-      cierreDisparado.current = true;
-      fetch("/api/clases/cerrar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ claseId: clase.id }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data?.clase) setClase(data.clase);
+      if (
+        restante === 0 &&
+        clase.estado === "abierta" &&
+        !cierreDisparado.current
+      ) {
+        cierreDisparado.current = true;
+        fetch("/api/clases/cerrar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ claseId: clase.id }),
         })
-        .catch(() => {});
-    }
-  }, [segundosRestantes, clase.estado, clase.id]);
+          .then((res) => res.json())
+          .then((data) => {
+            if (!cancelado && data?.clase) setClase(data.clase);
+          })
+          .catch(() => {});
+      }
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => {
+      cancelado = true;
+      clearInterval(id);
+    };
+  }, [clase.token_expira_en, clase.estado, clase.id]);
 
   useEffect(() => {
     let activo = true;
@@ -207,7 +217,7 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
           }}
         >
           <h3>Presentes ({asistencias.length})</h3>
-          <a className="btn secondary" href={`/api/clases/${clase.id}/asistencias.csv`} target="_blank" rel="noopener noreferrer">
+          <a className="btn secondary" href={`/api/clases/${clase.id}/asistencias?formato=csv`} target="_blank" rel="noopener noreferrer">
             Exportar CSV
           </a>
         </div>
