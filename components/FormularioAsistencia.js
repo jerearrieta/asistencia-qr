@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { obtenerDispositivoId } from "@/lib/dispositivo";
 
 export default function FormularioAsistencia({
   claseId,
@@ -10,7 +11,7 @@ export default function FormularioAsistencia({
   const [dni, setDni] = useState("");
   const [nombre, setNombre] = useState("");
   const [codigo, setCodigo] = useState(tokenInicial || "");
-  const [estado, setEstado] = useState("idle"); // idle | enviando | ok | error
+  const [estado, setEstado] = useState("idle");
   const [mensaje, setMensaje] = useState("");
 
   async function enviar(e) {
@@ -27,6 +28,7 @@ export default function FormularioAsistencia({
         dni,
         nombre,
         metodo: pedirCodigo ? "codigo" : "qr",
+        dispositivoId: obtenerDispositivoId(),
       }),
     });
     const data = await res.json();

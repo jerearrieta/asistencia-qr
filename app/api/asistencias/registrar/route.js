@@ -1,73 +1,73 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { generarToken, minutosDeExpiracion } from "@/lib/generateToken";
-
-const ZONA_HORARIA = "America/Argentina/Cordoba";
-
-// Argentina no tiene horario de verano (offset fijo -03:00), por eso
-// podemos armar el rango de "hoy" a mano sin librerías extra.
-function rangoDeHoyUTC() {
-  const fechaHoy = new Date().toLocaleDateString("en-CA", {
-    timeZone: ZONA_HORARIA,
-  }); // "YYYY-MM-DD"
-  const inicio = new Date(`${fechaHoy}T00:00:00-03:00`).toISOString();
-  const fin = new Date(`${fechaHoy}T23:59:59-03:00`).toISOString();
-  return { inicio, fin };
-}
 
 export async function POST(request) {
   const body = await request.json();
-  const cursoId = body?.cursoId;
+  const { claseId, token, dni, nombre, metodo, dispositivoId } = body || {};
 
-  if (!cursoId) {
-    return NextResponse.json({ error: "Falta cursoId" }, { status: 400 });
+  const dniLimpio = (dni || "").trim();
+  if (!dniLimpio) {
+    return NextResponse.json(
+      { error: "El DNI/legajo es obligatorio" },
+      { status: 400 }
+    );
+  }
+  if (!token) {
+    return NextResponse.json({ error: "Falta el código" }, { status: 400 });
   }
 
-  const expiraEn = new Date(
-    Date.now() + minutosDeExpiracion() * 60 * 1000
-  ).toISOString();
-  const { inicio, fin } = rangoDeHoyUTC();
+  let query = supabaseAdmin.from("clases").select("*");
+  query = claseId ? query.eq("id", claseId) : query.eq("token", token);
 
-  // ¿Ya existe una clase de este curso abierta hoy? Si es así, la
-  // reutilizamos en vez de crear una nueva (evita duplicados).
-  const { data: existente } = await supabaseAdmin
-    .from("clases")
-    .select("*")
-    .eq("curso_id", cursoId)
-    .gte("fecha", inicio)
-    .lte("fecha", fin)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data: clase, error: errorClase } = await query.single();
 
-  if (existente) {
-    const { data, error } = await supabaseAdmin
-      .from("clases")
-      .update({ estado: "abierta", token_expira_en: expiraEn })
-      .eq("id", existente.id)
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-    return NextResponse.json({ clase: data });
+  if (errorClase || !clase) {
+    return NextResponse.json(
+      { error: "No se encontró la clase indicada" },
+      { status: 404 }
+    );
   }
 
-  const token = generarToken();
+  if (clase.estado !== "abierta") {
+    return NextResponse.json(
+      { error: "La toma de asistencia ya fue cerrada" },
+      { status: 409 }
+    );
+  }
+  if (clase.token !== token) {
+    return NextResponse.json({ error: "Código inválido" }, { status: 401 });
+  }
+  if (new Date(clase.token_expira_en).getTime() < Date.now()) {
+    return NextResponse.json(
+      { error: "El código expiró, pedile al profesor uno nuevo" },
+      { status: 410 }
+    );
+  }
+
   const { data, error } = await supabaseAdmin
-    .from("clases")
+    .from("asistencias")
     .insert({
-      curso_id: cursoId,
-      estado: "abierta",
-      token,
-      token_expira_en: expiraEn,
+      clase_id: clase.id,
+      dni_alumno: dniLimpio,
+      nombre_alumno: (nombre || "").trim() || null,
+      metodo: metodo === "codigo" ? "codigo" : "qr",
+      dispositivo_id: dispositivoId || null,
     })
     .select()
     .single();
 
   if (error) {
+    if (error.code === "23505") {
+      return NextResponse.json(
+        {
+          error:
+            "Ya se registró una asistencia en esta clase con ese DNI o desde este dispositivo",
+        },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ clase: data }, { status: 201 });
+
+  return NextResponse.json({ asistencia: data }, { status: 201 });
 }
