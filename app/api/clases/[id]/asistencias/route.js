@@ -58,7 +58,7 @@ export async function GET(request, { params }) {
       )
       .join("\n");
 
-    const csv = `\uFEFFsep=;\n${encabezado}\n${filas}`;
+    const csv = `\uFEFF\n${encabezado}\n${filas}`;
 
     return new NextResponse(csv, {
       status: 200,
