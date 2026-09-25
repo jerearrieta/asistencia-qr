@@ -1,30 +1,59 @@
 import { NextResponse } from "next/server";
+import { COOKIE_SESION, verificarSesion, inicioPorRol } from "@/lib/sesion";
 
-export function middleware(request) {
-  const encabezado = request.headers.get("authorization");
+// Qué roles pueden entrar a cada sección. Lo que no figura acá es público
+// (home, login, registro de asistencia de los alumnos).
+const REGLAS = [
+  { prefijo: "/admin", roles: ["director"] },
+  { prefijo: "/api/admin", roles: ["director"] },
+  { prefijo: "/tablero", roles: ["director", "profesor"] },
+  { prefijo: "/api/tablero", roles: ["director", "profesor"] },
+  { prefijo: "/profesor", roles: ["director", "profesor"] },
+  { prefijo: "/api/clases", roles: ["director", "profesor"] },
+  { prefijo: "/alumno", roles: ["alumno"] },
+  { prefijo: "/cuenta", roles: ["director", "profesor", "alumno"] },
+  { prefijo: "/api/auth/password", roles: ["director", "profesor", "alumno"] },
+];
 
-  if (encabezado) {
-    const [, credencialesB64] = encabezado.split(" ");
-    const [usuario, clave] = Buffer.from(credencialesB64, "base64")
-      .toString()
-      .split(":");
+export async function middleware(request) {
+  const { pathname, search } = request.nextUrl;
+  const regla = REGLAS.find(
+    (r) => pathname === r.prefijo || pathname.startsWith(`${r.prefijo}/`)
+  );
+  if (!regla) return NextResponse.next();
 
-    if (
-      usuario === process.env.ADMIN_USER &&
-      clave === process.env.ADMIN_PASSWORD
-    ) {
-      return NextResponse.next();
+  const sesion = await verificarSesion(request.cookies.get(COOKIE_SESION)?.value);
+  const esApi = pathname.startsWith("/api/");
+
+  if (!sesion) {
+    if (esApi) {
+      return NextResponse.json({ error: "Iniciá sesión" }, { status: 401 });
     }
+    const url = new URL("/login", request.url);
+    url.searchParams.set("next", pathname + search);
+    return NextResponse.redirect(url);
   }
 
-  return new NextResponse("Autenticación requerida", {
-    status: 401,
-    headers: {
-      "WWW-Authenticate": 'Basic realm="Panel del profesor"',
-    },
-  });
+  if (!regla.roles.includes(sesion.rol)) {
+    if (esApi) {
+      return NextResponse.json({ error: "No tenés permiso" }, { status: 403 });
+    }
+    return NextResponse.redirect(new URL(inicioPorRol(sesion.rol), request.url));
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/profesor/:path*", "/api/cursos/:path*", "/api/clases/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/api/admin/:path*",
+    "/tablero/:path*",
+    "/api/tablero/:path*",
+    "/profesor/:path*",
+    "/api/clases/:path*",
+    "/alumno/:path*",
+    "/cuenta/:path*",
+    "/api/auth/password",
+  ],
 };

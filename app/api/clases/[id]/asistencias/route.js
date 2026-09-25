@@ -1,73 +1,42 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { exigirRol } from "@/lib/auth";
+import { claseGestionable } from "@/lib/consultas";
+import { COLUMNAS_DETALLE, respuestaCsv } from "@/lib/csv";
 
-const ZONA_HORARIA = "America/Argentina/Cordoba";
-
-function formatearFechaLocal(iso) {
-  return new Date(iso).toLocaleString("es-AR", {
-    timeZone: ZONA_HORARIA,
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-}
-
-function celdaCsv(valor) {
-  return `"${String(valor ?? "").replace(/"/g, '""')}"`;
-}
-
+// Devuelve el padrón de la comisión marcando quién está presente en esta
+// clase. Con ?formato=csv lo exporta, con carrera, materia, turno, etc.
 export async function GET(request, { params }) {
+  const { sesion, error: sinPermiso } = await exigirRol("director", "profesor");
+  if (sinPermiso) return sinPermiso;
+
   const claseId = params.id;
-  const { searchParams } = new URL(request.url);
-  const formato = searchParams.get("formato");
+  const formato = new URL(request.url).searchParams.get("formato");
 
-  const { data: clase, error: errorClase } = await supabaseAdmin
-    .from("clases")
-    .select("*, cursos(nombre)")
-    .eq("id", claseId)
-    .single();
-
-  if (errorClase) {
-    return NextResponse.json({ error: errorClase.message }, { status: 404 });
+  const permiso = await claseGestionable(claseId, sesion);
+  if (permiso.error) {
+    return NextResponse.json({ error: permiso.error }, { status: permiso.status });
   }
+  const { clase, comision } = permiso;
 
-  const { data: asistencias, error } = await supabaseAdmin
-    .from("asistencias")
+  const { data: padron, error } = await supabaseAdmin
+    .from("v_detalle_asistencia")
     .select("*")
     .eq("clase_id", claseId)
-    .order("registrado_en", { ascending: true });
+    .order("alumno", { ascending: true });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   if (formato === "csv") {
-    const encabezado = ["DNI/Legajo", "Nombre", "Método", "Fecha y hora"]
-      .map(celdaCsv)
-      .join(";");
-
-    const filas = asistencias
-      .map((a) =>
-        [a.dni_alumno, a.nombre_alumno || "", a.metodo, formatearFechaLocal(a.registrado_en)]
-          .map(celdaCsv)
-          .join(";")
-      )
-      .join("\n");
-
-    const csv = `\uFEFF\n${encabezado}\n${filas}`;
-
-    return new NextResponse(csv, {
-      status: 200,
-      headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="asistencia-${claseId}.csv"`,
-      },
-    });
+    const fecha = new Date(clase.fecha).toISOString().slice(0, 10);
+    const nombre = `asistencia-${comision.materia}-${comision.anio}${comision.division}-${fecha}.csv`
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^\w.-]+/g, "_");
+    return respuestaCsv(padron, COLUMNAS_DETALLE, nombre);
   }
 
-  return NextResponse.json({ clase, asistencias });
+  return NextResponse.json({ clase, comision, padron });
 }

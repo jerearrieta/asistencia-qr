@@ -1,5 +1,6 @@
 import { unstable_noStore as noStore } from "next/cache";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { obtenerSesion } from "@/lib/auth";
+import { claseGestionable } from "@/lib/consultas";
 import ClaseEnVivo from "@/components/ClaseEnVivo";
 
 export const dynamic = "force-dynamic";
@@ -8,17 +9,13 @@ export const revalidate = 0;
 
 export default async function ClasePage({ params }) {
   noStore();
+  const sesion = await obtenerSesion();
+  const { clase, comision, error } = await claseGestionable(params.id, sesion);
 
-  const { data: clase, error } = await supabaseAdmin
-    .from("clases")
-    .select("*, cursos(nombre)")
-    .eq("id", params.id)
-    .single();
-
-  if (error || !clase) {
+  if (error) {
     return (
       <div>
-        <p className="mensaje-error">No se encontró la clase.</p>
+        <p className="mensaje-error">{error}</p>
         <a href="/profesor">Volver</a>
       </div>
     );
@@ -30,7 +27,7 @@ export default async function ClasePage({ params }) {
         <a href="/profesor">&larr; Volver al panel</a>
       </p>
       <p>Mostrale esta pantalla o tu celular a los alumnos.</p>
-      <ClaseEnVivo clase={clase} />
+      <ClaseEnVivo clase={clase} comision={comision} />
     </div>
   );
 }

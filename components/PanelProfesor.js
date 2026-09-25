@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { claseEstaAbierta } from "@/lib/estadoClase";
-
-const ZONA_HORARIA = "America/Argentina/Cordoba";
+import { ZONA_HORARIA, describirComision } from "@/lib/constantes";
 
 function esDeHoy(fechaIso) {
   const hoy = new Date().toLocaleDateString("en-CA", { timeZone: ZONA_HORARIA });
@@ -13,44 +12,29 @@ function esDeHoy(fechaIso) {
   return hoy === fecha;
 }
 
-export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
-  const [cursos, setCursos] = useState(cursosIniciales || []);
+export default function PanelProfesor({ comisiones, clasesIniciales, mostrarProfesor }) {
   const [clases, setClases] = useState(clasesIniciales || []);
-  const [nombreCurso, setNombreCurso] = useState("");
-  const [editandoId, setEditandoId] = useState(null);
-  const [nombreEditado, setNombreEditado] = useState("");
+  const [carrera, setCarrera] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
 
-  async function crearCurso(e) {
-    e.preventDefault();
-    setError("");
-    if (!nombreCurso.trim()) return;
+  const porId = useMemo(
+    () => Object.fromEntries(comisiones.map((c) => [c.comision_id, c])),
+    [comisiones]
+  );
+  const carreras = useMemo(
+    () => [...new Set(comisiones.map((c) => c.carrera))],
+    [comisiones]
+  );
+  const visibles = comisiones.filter((c) => !carrera || c.carrera === carrera);
 
-    setCargando(true);
-    const res = await fetch("/api/cursos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nombre: nombreCurso }),
-    });
-    const data = await res.json();
-    setCargando(false);
-
-    if (!res.ok) {
-      setError(data.error || "Error al crear el curso");
-      return;
-    }
-    setCursos([data.curso, ...cursos]);
-    setNombreCurso("");
-  }
-
-  async function abrirClase(cursoId) {
+  async function abrirClase(comisionId) {
     setError("");
     setCargando(true);
     const res = await fetch("/api/clases/abrir", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cursoId }),
+      body: JSON.stringify({ comisionId }),
     });
     const data = await res.json();
     setCargando(false);
@@ -62,61 +46,10 @@ export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
     window.location.href = `/profesor/clase/${data.clase.id}`;
   }
 
-  function empezarEdicion(curso) {
-    setEditandoId(curso.id);
-    setNombreEditado(curso.nombre);
-  }
-
-  async function guardarEdicion(cursoId) {
-    if (!nombreEditado.trim()) return;
-    setError("");
-    setCargando(true);
-    const res = await fetch(`/api/cursos/${cursoId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nombre: nombreEditado }),
-    });
-    const data = await res.json();
-    setCargando(false);
-
-    if (!res.ok) {
-      setError(data.error || "Error al editar el curso");
-      return;
-    }
-    setCursos(cursos.map((c) => (c.id === cursoId ? data.curso : c)));
-    setClases(
-      clases.map((c) =>
-        c.curso_id === cursoId
-          ? { ...c, cursos: { ...c.cursos, nombre: data.curso.nombre } }
-          : c
-      )
-    );
-    setEditandoId(null);
-  }
-
-  async function eliminarCurso(curso) {
-    const confirmado = window.confirm(
-      `¿Eliminar "${curso.nombre}"? Esto borra también todas sus clases y asistencias registradas. Esta acción no se puede deshacer.`
-    );
-    if (!confirmado) return;
-
-    setError("");
-    setCargando(true);
-    const res = await fetch(`/api/cursos/${curso.id}`, { method: "DELETE" });
-    setCargando(false);
-
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error || "Error al eliminar el curso");
-      return;
-    }
-    setCursos(cursos.filter((c) => c.id !== curso.id));
-    setClases(clases.filter((c) => c.curso_id !== curso.id));
-  }
-
   async function eliminarClase(clase) {
+    const comision = porId[clase.comision_id];
     const confirmado = window.confirm(
-      `¿Eliminar este registro de clase (${clase.cursos?.nombre} — ${new Date(
+      `¿Eliminar este registro de clase (${comision?.materia} — ${new Date(
         clase.fecha
       ).toLocaleDateString("es-AR")})? Esto borra también las asistencias de esa clase.`
     );
@@ -137,96 +70,51 @@ export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
 
   return (
     <div>
-      <div className="card">
-        <h3>Nuevo curso</h3>
-        <form onSubmit={crearCurso}>
-          <input
-            placeholder="Ej: Métodos Cuantitativos de Gestión"
-            value={nombreCurso}
-            onChange={(e) => setNombreCurso(e.target.value)}
-          />
-          <button className="btn" disabled={cargando}>
-            Crear curso
-          </button>
-        </form>
-      </div>
-
       {error && <p className="mensaje-error">{error}</p>}
 
       <div className="card">
-        <h3>Mis cursos</h3>
-        {cursos.length === 0 && <p>Todavía no creaste ningún curso.</p>}
-        {cursos.map((curso) => {
+        <h3>{mostrarProfesor ? "Comisiones" : "Mis comisiones"}</h3>
+        {comisiones.length === 0 && (
+          <p>
+            Todavía no tenés comisiones asignadas. Pedile al director que te
+            asigne tus materias.
+          </p>
+        )}
+        {carreras.length > 1 && (
+          <select value={carrera} onChange={(e) => setCarrera(e.target.value)}>
+            <option value="">Todas las carreras</option>
+            {carreras.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        )}
+        {visibles.map((comision) => {
           const claseDeHoy = clases.find(
-            (c) => c.curso_id === curso.id && esDeHoy(c.fecha)
+            (c) => c.comision_id === comision.comision_id && esDeHoy(c.fecha)
           );
-          if (claseDeHoy && !claseEstaAbierta(claseDeHoy)) return null;
 
           return (
-            <div
-              key={curso.id}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 0",
-                borderBottom: "1px solid #eee",
-              }}
-            >
-              {editandoId === curso.id ? (
-                <>
-                  <input
-                    style={{ margin: 0 }}
-                    value={nombreEditado}
-                    onChange={(e) => setNombreEditado(e.target.value)}
-                    autoFocus
-                  />
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button
-                      className="btn"
-                      disabled={cargando}
-                      onClick={() => guardarEdicion(curso.id)}
-                    >
-                      Guardar
-                    </button>
-                    <button
-                      className="btn secondary"
-                      onClick={() => setEditandoId(null)}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </>
+            <div key={comision.comision_id} className="fila-lista">
+              <span>
+                {describirComision(comision)}
+                <br />
+                <span className="texto-suave">
+                  {comision.carrera} · {comision.inscriptos} inscriptos
+                  {mostrarProfesor && ` · ${comision.profesor || "Sin profesor"}`}
+                </span>
+              </span>
+              {claseDeHoy ? (
+                <a className="btn secondary" href={`/profesor/clase/${claseDeHoy.id}`}>
+                  Ver clase de hoy
+                </a>
               ) : (
-                <>
-                  <span>{curso.nombre}</span>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    {!claseDeHoy && (
-                      <button
-                        className="btn"
-                        disabled={cargando}
-                        onClick={() => abrirClase(curso.id)}
-                      >
-                        Abrir clase de hoy
-                      </button>
-                    )}
-                    <button
-                      className="btn secondary"
-                      disabled={cargando}
-                      onClick={() => empezarEdicion(curso)}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      className="btn danger"
-                      disabled={cargando}
-                      onClick={() => eliminarCurso(curso)}
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                </>
+                <button
+                  className="btn"
+                  disabled={cargando}
+                  onClick={() => abrirClase(comision.comision_id)}
+                >
+                  Abrir clase de hoy
+                </button>
               )}
             </div>
           );
@@ -237,18 +125,9 @@ export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
         <h3>Clases recientes</h3>
         {clases.length === 0 && <p>Todavía no abriste ninguna clase.</p>}
         {clases.map((c) => (
-          <div
-            key={c.id}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "8px 0",
-              borderBottom: "1px solid #eee",
-            }}
-          >
+          <div key={c.id} className="fila-lista">
             <span>
-              {c.cursos?.nombre} —{" "}
+              {porId[c.comision_id] && describirComision(porId[c.comision_id])} —{" "}
               {new Date(c.fecha).toLocaleDateString("es-AR")}{" "}
               <strong
                 style={{ color: claseEstaAbierta(c) ? "#16a34a" : "#6b7280" }}
@@ -256,15 +135,20 @@ export default function PanelProfesor({ cursosIniciales, clasesIniciales }) {
                 ({claseEstaAbierta(c) ? "Abierta" : "Cerrada"})
               </strong>
             </span>
-            <div style={{ display: "flex", gap: 6 }}>
-              <a className="btn secondary" href={`/profesor/clase/${c.id}`}>
+            <div className="acciones">
+              <a className="btn secondary chico" href={`/profesor/clase/${c.id}`}>
                 Ver
               </a>
-              <a className="btn secondary" href={`/api/clases/${c.id}/asistencias?formato=csv`} target="_blank" rel="noopener noreferrer">
+              <a
+                className="btn secondary chico"
+                href={`/api/clases/${c.id}/asistencias?formato=csv`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 CSV
               </a>
               <button
-                className="btn danger"
+                className="btn danger chico"
                 disabled={cargando}
                 onClick={() => eliminarClase(c)}
                 title="Eliminar esta clase"

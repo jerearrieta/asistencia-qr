@@ -100,3 +100,420 @@ th, td {
   border-bottom: 1px solid #eee;
   font-size: 14px;
 }
+
+/* Páginas anchas (tablero, administración) */
+.container:has(.ancho) {
+  max-width: 1160px;
+}
+
+.barra {
+  background: white;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.barra-interior {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.marca {
+  font-weight: 700;
+  color: #1a1a1a;
+  text-decoration: none;
+}
+
+.barra nav {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+
+.barra nav a {
+  text-decoration: none;
+}
+
+button.enlace {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #dc2626;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.acciones {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn.chico {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.texto-suave {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.fila-lista {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  flex-wrap: wrap;
+}
+
+.tabla-scroll {
+  overflow-x: auto;
+}
+
+textarea {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #d4d4d4;
+  font-size: 14px;
+  font-family: inherit;
+  margin-bottom: 10px;
+}
+
+.pestanas {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.pestanas button {
+  background: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.pestanas button.activa {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: white;
+}
+
+.grilla-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 6px 16px;
+  margin-bottom: 12px;
+}
+
+label.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  min-height: 36px;
+}
+
+label.check input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+label.check select {
+  width: auto;
+  margin: 0 0 0 auto;
+  padding: 4px 6px;
+}
+
+.grilla-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0 12px;
+}
+
+.grilla-form label {
+  font-size: 13px;
+  color: #4b5563;
+}
+
+/* ---------------------------------------------------------------------------
+   Tablero (gráficos)
+   --------------------------------------------------------------------------- */
+.viz {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --texto-2: #52514e;
+  --texto-suave: #898781;
+  --grilla: #e1e0d9;
+  --eje: #c3c2b7;
+  --critico: #d03b3b;
+}
+
+.viz h3 {
+  margin-top: 0;
+  font-size: 16px;
+}
+
+.viz-filtros {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0 12px;
+  padding-bottom: 6px;
+}
+
+.viz-filtros label {
+  font-size: 13px;
+  color: var(--texto-2);
+}
+
+.viz-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.viz-tile {
+  background: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.viz-tile-etiqueta {
+  font-size: 13px;
+  color: var(--texto-2);
+}
+
+.viz-tile-valor {
+  font-size: 34px;
+  font-weight: 650;
+  margin: 4px 0;
+}
+
+.viz-tile-detalle {
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+
+.viz-tile-detalle.critico,
+.estado-critico {
+  color: var(--critico);
+  font-weight: 600;
+}
+
+.viz-grilla-2,
+.viz-grilla-3 {
+  display: grid;
+  gap: 0 16px;
+}
+
+@media (min-width: 900px) {
+  .viz-grilla-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .viz-grilla-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+.viz-barras {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.viz-fila {
+  display: grid;
+  grid-template-columns: minmax(90px, 38%) 1fr 44px;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 0;
+  cursor: default;
+}
+
+.viz-fila:hover:not(.viz-fila-ref) .viz-barra {
+  filter: brightness(0.9);
+}
+
+.viz-fila-ref {
+  height: 14px;
+  padding: 0;
+}
+
+.viz-etiqueta {
+  color: var(--texto-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.viz-pista {
+  position: relative;
+  height: 16px;
+  border-left: 1px solid var(--eje);
+}
+
+.viz-barra {
+  height: 100%;
+  background: var(--series-1);
+  border-radius: 0 4px 4px 0;
+}
+
+.viz-ref {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: #1a1a1a;
+  opacity: 0.55;
+}
+
+.viz-ref-texto {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--texto-suave);
+  white-space: nowrap;
+  top: -2px;
+}
+
+.viz-valor {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #1a1a1a;
+}
+
+.viz-grilla {
+  stroke: var(--grilla);
+  stroke-width: 1;
+}
+
+.viz-ref-linea {
+  stroke: #1a1a1a;
+  stroke-opacity: 0.45;
+  stroke-width: 1;
+}
+
+.viz-eje {
+  font-size: 11px;
+  fill: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-eje-fuerte {
+  font-size: 12px;
+  font-weight: 600;
+  fill: #1a1a1a;
+}
+
+.viz-linea {
+  fill: none;
+  stroke: var(--series-1);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.viz-punto {
+  fill: var(--series-1);
+  stroke: white;
+  stroke-width: 2;
+}
+
+.viz-cursor {
+  stroke: var(--eje);
+  stroke-width: 1;
+}
+
+.viz-tip {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+  background: white;
+  border: 1px solid #e5e5e5;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  max-width: 260px;
+}
+
+.viz-tip-abs {
+  position: absolute;
+  width: 190px;
+}
+
+.viz-apilada {
+  display: flex;
+  gap: 2px;
+  height: 20px;
+}
+
+.viz-apilada > div:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.viz-apilada > div:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.viz-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--texto-2);
+}
+
+.viz-leyenda i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+
+th.num,
+td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-celda-barra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.viz-mini {
+  width: 70px;
+  height: 8px;
+  background: #eef2f8;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.viz-mini > div {
+  height: 100%;
+  background: var(--series-1);
+}
