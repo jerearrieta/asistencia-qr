@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BookOpen, ClipboardList, GraduationCap, LayoutGrid, Users } from "lucide-react";
 import AdminCarreras from "./AdminCarreras";
 import AdminMaterias from "./AdminMaterias";
 import AdminComisiones from "./AdminComisiones";
@@ -8,11 +9,11 @@ import AdminUsuarios from "./AdminUsuarios";
 import AdminPadron from "./AdminPadron";
 
 const PESTANAS = [
-  ["comisiones", "Comisiones"],
-  ["padron", "Padrón"],
-  ["usuarios", "Usuarios"],
-  ["materias", "Materias"],
-  ["carreras", "Carreras"],
+  ["comisiones", "Comisiones", LayoutGrid],
+  ["padron", "Padrón", ClipboardList],
+  ["usuarios", "Usuarios", Users],
+  ["materias", "Materias", BookOpen],
+  ["carreras", "Carreras", GraduationCap],
 ];
 
 export default function PanelAdmin(props) {
@@ -20,13 +21,16 @@ export default function PanelAdmin(props) {
 
   return (
     <div>
-      <div className="pestanas">
-        {PESTANAS.map(([id, texto]) => (
+      <div className="pestanas" role="tablist">
+        {PESTANAS.map(([id, texto, Icono]) => (
           <button
             key={id}
+            role="tab"
+            aria-selected={pestana === id}
             className={pestana === id ? "activa" : ""}
             onClick={() => setPestana(id)}
           >
+            <Icono size={15} />
             {texto}
           </button>
         ))}

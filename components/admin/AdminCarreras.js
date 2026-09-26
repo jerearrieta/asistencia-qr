@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Trash2, Pencil } from "lucide-react";
 import { llamarApi } from "./api";
 
 export default function AdminCarreras({ carreras, materias }) {
@@ -59,7 +60,7 @@ export default function AdminCarreras({ carreras, materias }) {
           />
           <button className="btn">Agregar</button>
         </form>
-        {error && <p className="mensaje-error">{error}</p>}
+        {error && <p className="mensaje-error" style={{ marginTop: 12 }}>{error}</p>}
       </div>
 
       <div className="card">
@@ -91,11 +92,11 @@ export default function AdminCarreras({ carreras, materias }) {
                 </span>
                 <div className="acciones">
                   <button className="btn secondary chico" onClick={() => setEditando(c)}>
-                    Editar
-                  </button>
-                  <button className="btn danger chico" onClick={() => eliminar(c)}>
-                    Eliminar
-                  </button>
+                        <Pencil size={14} /> Editar
+                      </button>
+                  <button className="btn danger-suave chico icono" onClick={() => eliminar(c)} title="Eliminar" aria-label="Eliminar">
+                        <Trash2 size={15} />
+                      </button>
                 </div>
               </>
             )}

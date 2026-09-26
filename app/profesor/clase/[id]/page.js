@@ -1,7 +1,9 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { obtenerSesion } from "@/lib/auth";
 import { claseGestionable } from "@/lib/consultas";
+import { AlertCircle, ArrowLeft } from "lucide-react";
 import ClaseEnVivo from "@/components/ClaseEnVivo";
+import { minutosDeExpiracion } from "@/lib/generateToken";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -15,19 +17,23 @@ export default async function ClasePage({ params }) {
   if (error) {
     return (
       <div>
-        <p className="mensaje-error">{error}</p>
-        <a href="/profesor">Volver</a>
+        <a className="volver" href="/profesor">
+          <ArrowLeft size={16} /> Volver a mis clases
+        </a>
+        <div className="alerta error">
+          <AlertCircle size={18} />
+          {error}
+        </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <p>
-        <a href="/profesor">&larr; Volver al panel</a>
-      </p>
-      <p>Mostrale esta pantalla o tu celular a los alumnos.</p>
-      <ClaseEnVivo clase={clase} comision={comision} />
+    <div className="ancho">
+      <a className="volver" href="/profesor">
+        <ArrowLeft size={16} /> Volver a mis clases
+      </a>
+      <ClaseEnVivo clase={clase} comision={comision} duracionSeg={minutosDeExpiracion() * 60} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 
 export const formatoPct = (v) => (v === null || v === undefined ? "—" : `${Math.round(v * 100)}%`);
 export const formatoNum = (v) => Number(v || 0).toLocaleString("es-AR");
@@ -37,14 +38,21 @@ function useAncho() {
 // ---------------------------------------------------------------------------
 // Tarjeta de indicador (KPI)
 // ---------------------------------------------------------------------------
-export function Indicador({ etiqueta, valor, detalle, alerta }) {
+export function Indicador({ etiqueta, valor, detalle, alerta, icono: Icono, tono = "" }) {
   return (
     <div className="viz-tile">
-      <div className="viz-tile-etiqueta">{etiqueta}</div>
+      <div className="viz-tile-cabecera">
+        <div className="viz-tile-etiqueta">{etiqueta}</div>
+        {Icono && (
+          <div className={`icono-caja ${tono}`}>
+            <Icono size={17} />
+          </div>
+        )}
+      </div>
       <div className="viz-tile-valor">{valor}</div>
       {detalle && (
         <div className={`viz-tile-detalle ${alerta ? "critico" : ""}`}>
-          {alerta && <span aria-hidden="true">⚠ </span>}
+          {alerta && <AlertTriangle size={13} style={{ verticalAlign: "-2px", marginRight: 4 }} />}
           {detalle}
         </div>
       )}
@@ -186,6 +194,12 @@ export function LineaSemanal({ puntos, referencia }) {
             </text>
           ) : null
         )}
+        <path
+          d={`${puntos.map((pt, i) => `${i ? "L" : "M"}${x(i)},${y(pt.valor)}`).join(" ")} L${x(
+            puntos.length - 1
+          )},${alto - m.abajo} L${x(0)},${alto - m.abajo} Z`}
+          className="viz-area"
+        />
         <path
           d={puntos.map((pt, i) => `${i ? "L" : "M"}${x(i)},${y(pt.valor)}`).join(" ")}
           className="viz-linea"

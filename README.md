@@ -74,6 +74,23 @@ modalidad. Cada filtro muestra solo las opciones compatibles con los demás
 
 El director ve todo; cada profesor ve solo sus comisiones.
 
+## Diseño
+
+La interfaz usa un sistema de diseño propio en `app/globals.css`, basado en
+variables CSS (colores, espaciados, radios, sombras y tiempos de animación):
+
+- **Modo claro y oscuro automático**, según la configuración del
+  dispositivo. El QR siempre se muestra sobre fondo blanco para que se
+  escanee bien.
+- **100% responsive**: menú desplegable en celulares, formularios con
+  letra de 16px en móvil (evita el zoom de iOS) y tablas con scroll
+  horizontal.
+- **Microinteracciones sutiles**: botones que responden al toque,
+  transiciones de 150–250ms, indicador "en vivo" en las clases abiertas y
+  cuenta regresiva del código. Se respeta la preferencia de "reducir
+  movimiento" del sistema.
+- Tipografía **Inter** (`next/font`) e íconos de **lucide-react**.
+
 ## Stack
 
 - **Next.js 14** (App Router) — frontend + backend (API Routes) en el
@@ -81,6 +98,7 @@ El director ve todo; cada profesor ve solo sus comisiones.
 - **Supabase (Postgres)** — base de datos.
 - **Vercel** — hosting/deploy.
 - `react-qr-code` para generar el QR en el navegador.
+- `lucide-react` para los íconos.
 - `bcryptjs` para las contraseñas; la sesión es una cookie firmada
   (HMAC) que valida el `middleware.js` según el rol.
 

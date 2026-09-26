@@ -1,3 +1,4 @@
+import { ScanLine } from "lucide-react";
 import FormularioAsistencia from "@/components/FormularioAsistencia";
 import { obtenerSesion } from "@/lib/auth";
 
@@ -7,10 +8,15 @@ export default async function AsistenciaQrPage({ params }) {
   const dniInicial = sesion?.rol === "alumno" ? sesion.dni : "";
 
   return (
-    <div>
-      <h1>Registrar asistencia</h1>
+    <div className="centrado">
+      <div className="centrado-head">
+        <div className="icono-caja ok">
+          <ScanLine size={24} />
+        </div>
+        <h1>Confirmá tu presencia</h1>
+        <p>Ingresá tu DNI para registrar tu asistencia en esta clase.</p>
+      </div>
       <div className="card">
-        <p>Ingresá tu DNI para confirmar tu presencia en la clase.</p>
         <FormularioAsistencia
           claseId={params.claseId}
           tokenInicial={params.token}

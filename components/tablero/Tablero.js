@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { TURNOS, UMBRAL_REGULARIDAD, capitalizar } from "@/lib/constantes";
+import { TURNOS, UMBRAL_REGULARIDAD, capitalizar, iniciales } from "@/lib/constantes";
 import { filtrarComisiones, filtrosVacios } from "@/lib/filtros";
+import { AlertTriangle, BookOpenCheck, Download, Percent, SlidersHorizontal, Users, X } from "lucide-react";
 import SelectorFiltro from "@/components/SelectorFiltro";
 import {
   BarraApilada,
@@ -178,7 +179,24 @@ export default function Tablero({ comisiones, alumnos, semanal, esDirector }) {
 
   return (
     <div className="viz">
-      <div className="card viz-filtros">
+      <div className="card">
+        <div className="card-head" style={{ marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <SlidersHorizontal size={16} />
+            <h3>Filtros</h3>
+            {hayFiltros && (
+              <span className="badge brand">
+                {Object.values(filtros).filter(Boolean).length} activos
+              </span>
+            )}
+          </div>
+          {hayFiltros && (
+            <button className="btn ghost chico" onClick={() => setFiltros(vacios)}>
+              <X size={14} /> Limpiar
+            </button>
+          )}
+        </div>
+        <div className="viz-filtros">
         {clavesFiltro.map((clave) => (
           <SelectorFiltro
             key={clave}
@@ -188,12 +206,6 @@ export default function Tablero({ comisiones, alumnos, semanal, esDirector }) {
             setFiltros={setFiltros}
           />
         ))}
-        <div className="acciones" style={{ alignSelf: "end", marginBottom: 10 }}>
-          {hayFiltros && (
-            <button className="btn secondary chico" onClick={() => setFiltros(vacios)}>
-              Limpiar filtros
-            </button>
-          )}
         </div>
       </div>
 
@@ -202,32 +214,47 @@ export default function Tablero({ comisiones, alumnos, semanal, esDirector }) {
           etiqueta="Asistencia promedio"
           valor={formatoPct(pct(datos.presentes, datos.esperados))}
           detalle={`${formatoNum(datos.presentes)} presentes de ${formatoNum(datos.esperados)}`}
+          icono={Percent}
         />
         <Indicador
           etiqueta="Alumnos inscriptos"
           valor={formatoNum(datos.inscriptosTotal)}
           detalle={`en ${formatoNum(filtradas.length)} comisiones`}
+          icono={Users}
         />
         <Indicador
           etiqueta="Clases dictadas"
           valor={formatoNum(datos.clases)}
           detalle="con toma de asistencia"
+          icono={BookOpenCheck}
         />
         <Indicador
           etiqueta="Alumnos en riesgo"
           valor={formatoNum(datos.alumnosEnRiesgo)}
           detalle={`bajo ${formatoPct(UMBRAL_REGULARIDAD)} en alguna materia`}
           alerta={datos.alumnosEnRiesgo > 0}
+          icono={AlertTriangle}
+          tono="danger"
         />
       </div>
 
       <div className="viz-grilla-2">
         <div className="card">
-          <h3>Inscriptos por carrera</h3>
+          <div className="card-head">
+            <div>
+              <h3>Inscriptos por carrera</h3>
+              <p>Alumnos únicos en las comisiones filtradas</p>
+            </div>
+          </div>
           <BarrasHorizontales filas={datos.inscriptosPorCarrera} />
         </div>
         <div className="card">
-          <h3>Asistencia por carrera</h3>
+          <div className="card-head">
+            <div>
+              <h3>Asistencia por carrera</h3>
+              <p>Porcentaje de presentes sobre lo esperado</p>
+            </div>
+          </div>
           <BarrasHorizontales
             filas={datos.porCarrera}
             max={1}
@@ -238,43 +265,77 @@ export default function Tablero({ comisiones, alumnos, semanal, esDirector }) {
       </div>
 
       <div className="card">
-        <h3>Evolución semanal de la asistencia</h3>
+        <div className="card-head">
+            <div>
+              <h3>Evolución semanal</h3>
+              <p>Porcentaje de asistencia de cada semana del cuatrimestre</p>
+            </div>
+          </div>
         <LineaSemanal puntos={datos.evolucion} referencia={UMBRAL_REGULARIDAD} />
       </div>
 
       <div className="viz-grilla-3">
         <div className="card">
-          <h3>Por turno</h3>
+          <div className="card-head">
+            <div>
+              <h3>Por turno</h3>
+              <p>% de asistencia</p>
+            </div>
+          </div>
           <BarrasHorizontales filas={datos.porTurno} max={1} referencia={UMBRAL_REGULARIDAD} />
         </div>
         <div className="card">
-          <h3>Por modalidad</h3>
+          <div className="card-head">
+            <div>
+              <h3>Por modalidad</h3>
+              <p>% de asistencia</p>
+            </div>
+          </div>
           <BarrasHorizontales filas={datos.porModalidad} max={1} referencia={UMBRAL_REGULARIDAD} />
         </div>
         <div className="card">
-          <h3>Por año de cursado</h3>
+          <div className="card-head">
+            <div>
+              <h3>Por año de cursado</h3>
+              <p>% de asistencia</p>
+            </div>
+          </div>
           <BarrasHorizontales filas={datos.porAnio} max={1} referencia={UMBRAL_REGULARIDAD} />
         </div>
       </div>
 
       <div className="card">
-        <h3>Cómo registran la asistencia</h3>
+        <div className="card-head">
+            <div>
+              <h3>Cómo registran la asistencia</h3>
+              <p>Proporción de registros por método</p>
+            </div>
+          </div>
         <BarraApilada segmentos={datos.metodos} />
       </div>
 
       <div className="card">
-        <div className="fila-lista" style={{ borderBottom: "none" }}>
-          <h3 style={{ margin: 0 }}>Alumnos en riesgo ({formatoNum(datos.enRiesgo.length)} materias)</h3>
+        <div className="card-head">
+          <div>
+            <h3>
+              Alumnos en riesgo{" "}
+              <span className="badge danger" style={{ marginLeft: 4 }}>
+                {formatoNum(datos.enRiesgo.length)}
+              </span>
+            </h3>
+            <p>
+              Menos del {formatoPct(UMBRAL_REGULARIDAD)} de asistencia en una materia, de menor a mayor
+            </p>
+          </div>
           <a className="btn secondary chico" href={`/api/tablero/exportar?tipo=alumnos&${consultaExport}`}>
-            CSV por alumno
+            <Download size={14} /> CSV por alumno
           </a>
         </div>
-        <p className="texto-suave">
-          Alumnos con menos del {formatoPct(UMBRAL_REGULARIDAD)} de asistencia en una materia,
-          de menor a mayor.
-        </p>
         {datos.enRiesgo.length === 0 ? (
-          <p>Nadie está por debajo del mínimo. 🎉</p>
+          <div className="vacio">
+            <h3>Nadie está por debajo del mínimo</h3>
+            <p>Todos los alumnos de las comisiones filtradas mantienen la regularidad.</p>
+          </div>
         ) : (
           <div className="tabla-scroll">
             <table>
@@ -291,7 +352,12 @@ export default function Tablero({ comisiones, alumnos, semanal, esDirector }) {
               <tbody>
                 {riesgoVisible.map((a) => (
                   <tr key={`${a.alumno_id}-${a.comision_id}`}>
-                    <td>{a.alumno}</td>
+                    <td>
+                      <div className="celda-persona">
+                        <span className="avatar">{iniciales(a.alumno)}</span>
+                        {a.alumno}
+                      </div>
+                    </td>
                     <td>{a.dni}</td>
                     <td>{a.carrera}</td>
                     <td>
@@ -301,7 +367,7 @@ export default function Tablero({ comisiones, alumnos, semanal, esDirector }) {
                       {a.presentes}/{a.clases}
                     </td>
                     <td className="num">
-                      <span className="estado-critico">⚠ {formatoPct(a.porcentaje)}</span>
+                      <span className="badge danger">{formatoPct(a.porcentaje)}</span>
                     </td>
                   </tr>
                 ))}
@@ -310,20 +376,22 @@ export default function Tablero({ comisiones, alumnos, semanal, esDirector }) {
           </div>
         )}
         {datos.enRiesgo.length > 15 && (
-          <button className="btn secondary chico" style={{ marginTop: 10 }} onClick={() => setVerTodosRiesgo(!verTodosRiesgo)}>
+          <button className="btn secondary bloque" style={{ marginTop: 16 }} onClick={() => setVerTodosRiesgo(!verTodosRiesgo)}>
             {verTodosRiesgo ? "Ver menos" : `Ver los ${formatoNum(datos.enRiesgo.length)}`}
           </button>
         )}
       </div>
 
       <div className="card">
-        <div className="fila-lista" style={{ borderBottom: "none" }}>
-          <h3 style={{ margin: 0 }}>Comisiones</h3>
+        <div className="card-head">
+          <div>
+            <h3>Comisiones</h3>
+            <p>Ordenadas de menor a mayor asistencia</p>
+          </div>
           <a className="btn secondary chico" href={`/api/tablero/exportar?tipo=detalle&${consultaExport}`}>
-            CSV detallado (presentes y ausentes)
+            <Download size={14} /> CSV detallado
           </a>
         </div>
-        <p className="texto-suave">Ordenadas de menor a mayor asistencia.</p>
         <div className="tabla-scroll">
           <table>
             <thead>
@@ -357,10 +425,13 @@ export default function Tablero({ comisiones, alumnos, semanal, esDirector }) {
                       <div className="viz-mini">
                         <div style={{ width: `${c.porcentaje * 100}%` }} />
                       </div>
-                      <span className={c.porcentaje < UMBRAL_REGULARIDAD ? "estado-critico" : ""}>
-                        {c.porcentaje < UMBRAL_REGULARIDAD && "⚠ "}
-                        {formatoPct(c.porcentaje)}
-                      </span>
+                      {c.porcentaje < UMBRAL_REGULARIDAD ? (
+                        <span className="badge danger">
+                          <AlertTriangle size={12} /> {formatoPct(c.porcentaje)}
+                        </span>
+                      ) : (
+                        <span>{formatoPct(c.porcentaje)}</span>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -370,8 +441,8 @@ export default function Tablero({ comisiones, alumnos, semanal, esDirector }) {
         </div>
         {datos.ranking.length > 15 && (
           <button
-            className="btn secondary chico"
-            style={{ marginTop: 10 }}
+            className="btn secondary bloque"
+            style={{ marginTop: 16 }}
             onClick={() => setVerTodasComisiones(!verTodasComisiones)}
           >
             {verTodasComisiones ? "Ver menos" : `Ver las ${formatoNum(datos.ranking.length)}`}

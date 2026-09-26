@@ -32,8 +32,17 @@ export default async function ProfesorPage() {
     : { data: [] };
 
   return (
-    <div>
-      <h1>{esDirector ? "Clases de todas las comisiones" : "Mis clases"}</h1>
+    <div className="ancho">
+      <div className="page-head">
+        <div>
+          <h1>{esDirector ? "Clases" : "Mis clases"}</h1>
+          <p>
+            {esDirector
+              ? "Abrí la clase de cualquier comisión y consultá las clases recientes."
+              : "Abrí la clase del día para mostrar el QR y tomar asistencia."}
+          </p>
+        </div>
+      </div>
       <PanelProfesor
         comisiones={comisiones || []}
         clasesIniciales={clases || []}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Trash2, Pencil } from "lucide-react";
 import { llamarApi } from "./api";
 import { TURNOS, MODALIDADES, capitalizar } from "@/lib/constantes";
 
@@ -151,13 +152,13 @@ export default function AdminComisiones({ carreras, materias, comisiones, profes
               </button>
             )}
           </div>
-          {error && <p className="mensaje-error">{error}</p>}
+          {error && <p className="mensaje-error" style={{ marginTop: 12 }}>{error}</p>}
         </form>
       </div>
 
       <div className="card">
-        <div className="fila-lista" style={{ borderBottom: "none" }}>
-          <h3 style={{ margin: 0 }}>Comisiones ({visibles.length})</h3>
+        <div className="card-head">
+          <h3>Comisiones ({visibles.length})</h3>
           <select style={{ width: "auto", margin: 0 }} value={filtro} onChange={(e) => setFiltro(e.target.value)}>
             <option value="">Todas las carreras</option>
             {carreras.map((c) => (
@@ -196,10 +197,10 @@ export default function AdminComisiones({ carreras, materias, comisiones, profes
                   <td>
                     <div className="acciones" style={{ flexWrap: "nowrap" }}>
                       <button className="btn secondary chico" onClick={() => editar(c)}>
-                        Editar
+                        <Pencil size={14} /> Editar
                       </button>
-                      <button className="btn danger chico" onClick={() => eliminar(c)}>
-                        🗑
+                      <button className="btn danger-suave chico icono" onClick={() => eliminar(c)} title="Eliminar" aria-label="Eliminar">
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   </td>

@@ -1,21 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 
 export default function CambiarPassword() {
   const [actual, setActual] = useState("");
   const [nueva, setNueva] = useState("");
+  const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState(null);
 
   async function enviar(e) {
     e.preventDefault();
     setMensaje(null);
+    setEnviando(true);
     const res = await fetch("/api/auth/password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ actual, nueva }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    setEnviando(false);
     if (!res.ok) {
       setMensaje({ ok: false, texto: data.error || "No se pudo cambiar" });
       return;
@@ -26,27 +30,38 @@ export default function CambiarPassword() {
   }
 
   return (
-    <form onSubmit={enviar}>
-      <input
-        type="password"
-        placeholder="Contraseña actual"
-        autoComplete="current-password"
-        value={actual}
-        onChange={(e) => setActual(e.target.value)}
-        required
-      />
-      <input
-        type="password"
-        placeholder="Nueva contraseña (mínimo 6 caracteres)"
-        autoComplete="new-password"
-        value={nueva}
-        onChange={(e) => setNueva(e.target.value)}
-        required
-      />
-      <button className="btn">Guardar</button>
+    <form onSubmit={enviar} style={{ maxWidth: 420 }}>
+      <label className="campo">
+        <span>Contraseña actual</span>
+        <input
+          type="password"
+          autoComplete="current-password"
+          value={actual}
+          onChange={(e) => setActual(e.target.value)}
+          required
+        />
+      </label>
+      <label className="campo">
+        <span>Nueva contraseña</span>
+        <input
+          type="password"
+          autoComplete="new-password"
+          minLength={6}
+          value={nueva}
+          onChange={(e) => setNueva(e.target.value)}
+          required
+        />
+      </label>
       {mensaje && (
-        <p className={mensaje.ok ? "mensaje-ok" : "mensaje-error"}>{mensaje.texto}</p>
+        <div className={`alerta ${mensaje.ok ? "ok" : "error"}`} role="status">
+          {mensaje.ok ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          {mensaje.texto}
+        </div>
       )}
+      <button className="btn" disabled={enviando}>
+        {enviando && <span className="spinner" />}
+        Guardar contraseña
+      </button>
     </form>
   );
 }

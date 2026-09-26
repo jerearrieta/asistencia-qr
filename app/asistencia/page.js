@@ -1,3 +1,4 @@
+import { Keyboard } from "lucide-react";
 import FormularioAsistencia from "@/components/FormularioAsistencia";
 import { obtenerSesion } from "@/lib/auth";
 
@@ -7,11 +8,18 @@ export default async function AsistenciaManualPage() {
   const dniInicial = sesion?.rol === "alumno" ? sesion.dni : "";
 
   return (
-    <div>
-      <h1>Registrar asistencia</h1>
+    <div className="centrado">
+      <div className="centrado-head">
+        <div className="icono-caja ok">
+          <Keyboard size={24} />
+        </div>
+        <h1>Registrar asistencia</h1>
+        <p>Ingresá el código que dictó o escribió el profesor y tu DNI.</p>
+      </div>
       <div className="card">
-        <p>Ingresá el código que dictó o escribió el profesor.</p>
-        <FormularioAsistencia pedirCodigo dniInicial={dniInicial} />
+        <FormularioAsistencia
+          pedirCodigo dniInicial={dniInicial}
+        />
       </div>
     </div>
   );

@@ -35,7 +35,12 @@ export default async function AdminPage() {
 
   return (
     <div className="ancho">
-      <h1>Administración</h1>
+      <div className="page-head">
+        <div>
+          <h1>Administración</h1>
+          <p>Carreras, materias, comisiones, usuarios y padrones de la institución.</p>
+        </div>
+      </div>
       <PanelAdmin
         carreras={carreras.data || []}
         materias={materias.data || []}

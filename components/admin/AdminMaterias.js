@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Trash2, Pencil } from "lucide-react";
 import { llamarApi } from "./api";
 
 const VACIA = { id: null, nombre: "", plan: {} }; // plan: { carreraId: anio }
@@ -109,13 +110,13 @@ export default function AdminMaterias({ carreras, materias }) {
               </button>
             )}
           </div>
-          {error && <p className="mensaje-error">{error}</p>}
+          {error && <p className="mensaje-error" style={{ marginTop: 12 }}>{error}</p>}
         </form>
       </div>
 
       <div className="card">
-        <div className="fila-lista" style={{ borderBottom: "none" }}>
-          <h3 style={{ margin: 0 }}>Materias ({visibles.length})</h3>
+        <div className="card-head">
+          <h3>Materias ({visibles.length})</h3>
           <select style={{ width: "auto", margin: 0 }} value={filtro} onChange={(e) => setFiltro(e.target.value)}>
             <option value="">Todas las carreras</option>
             {carreras.map((c) => (
@@ -138,11 +139,11 @@ export default function AdminMaterias({ carreras, materias }) {
             </span>
             <div className="acciones">
               <button className="btn secondary chico" onClick={() => editar(m)}>
-                Editar
-              </button>
-              <button className="btn danger chico" onClick={() => eliminar(m)}>
-                Eliminar
-              </button>
+                        <Pencil size={14} /> Editar
+                      </button>
+              <button className="btn danger-suave chico icono" onClick={() => eliminar(m)} title="Eliminar" aria-label="Eliminar">
+                        <Trash2 size={15} />
+                      </button>
             </div>
           </div>
         ))}

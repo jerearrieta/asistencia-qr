@@ -12,12 +12,16 @@ export default async function TableroPage() {
 
   return (
     <div className="ancho">
-      <h1 style={{ marginBottom: 4 }}>Tablero de asistencia</h1>
-      <p className="texto-suave" style={{ marginTop: 0 }}>
-        {sesion.rol === "director"
-          ? "Todas las carreras y comisiones."
-          : "Solo tus comisiones."}
-      </p>
+      <div className="page-head">
+        <div>
+          <h1>Tablero de asistencia</h1>
+          <p>
+            {sesion.rol === "director"
+              ? "Todas las carreras y comisiones. Usá los filtros para profundizar."
+              : "Tus comisiones. Usá los filtros para ver una materia o carrera."}
+          </p>
+        </div>
+      </div>
       <Tablero {...datos} esDirector={sesion.rol === "director"} />
     </div>
   );

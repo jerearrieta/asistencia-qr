@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { KeyRound, Pencil, Search, Trash2 } from "lucide-react";
 import { llamarApi } from "./api";
-import { ROLES, capitalizar } from "@/lib/constantes";
+import { ROLES, capitalizar, iniciales } from "@/lib/constantes";
 
 const VACIO = { id: null, dni: "", nombre: "", rol: "profesor", carreraId: "" };
 
@@ -147,12 +148,14 @@ export default function AdminUsuarios({ carreras }) {
             <option value="profesor">Profesores</option>
             <option value="alumno">Alumnos</option>
           </select>
+          <div className="campo-icono" style={{ flex: 1, margin: 0, minWidth: 200 }}>
+            <Search size={17} />
           <input
-            style={{ flex: 1, margin: 0, minWidth: 180 }}
             placeholder="Buscar por DNI o nombre"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
           />
+          </div>
         </div>
         <p className="texto-suave">
           {total > usuarios.length
@@ -174,8 +177,17 @@ export default function AdminUsuarios({ carreras }) {
               {usuarios.map((u) => (
                 <tr key={u.id}>
                   <td>{u.dni}</td>
-                  <td>{u.nombre}</td>
-                  <td>{capitalizar(u.rol)}</td>
+                  <td>
+                    <div className="celda-persona">
+                      <span className="avatar">{iniciales(u.nombre)}</span>
+                      {u.nombre}
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`badge ${u.rol === "director" ? "brand" : u.rol === "profesor" ? "ok" : ""}`}>
+                      {capitalizar(u.rol)}
+                    </span>
+                  </td>
                   <td>{u.carreras?.nombre || "-"}</td>
                   <td>
                     <div className="acciones" style={{ flexWrap: "nowrap" }}>
@@ -193,13 +205,13 @@ export default function AdminUsuarios({ carreras }) {
                           window.scrollTo({ top: 0, behavior: "smooth" });
                         }}
                       >
-                        Editar
+                        <Pencil size={14} /> Editar
                       </button>
-                      <button className="btn secondary chico" onClick={() => restablecer(u)}>
-                        Restablecer clave
+                      <button className="btn ghost chico" onClick={() => restablecer(u)} title="La contraseña vuelve a ser el DNI">
+                        <KeyRound size={14} /> Restablecer clave
                       </button>
-                      <button className="btn danger chico" onClick={() => eliminar(u)}>
-                        🗑
+                      <button className="btn danger-suave chico icono" onClick={() => eliminar(u)} title="Eliminar" aria-label="Eliminar">
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   </td>
