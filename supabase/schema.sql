@@ -243,10 +243,5 @@ alter table inscripciones enable row level security;
 alter table clases enable row level security;
 alter table asistencias enable row level security;
 
-do $$
-begin
-  if exists (select 1 from pg_roles where rolname = 'anon') then
-    revoke all on v_detalle_asistencia, v_resumen_comision, v_resumen_alumno,
-      v_resumen_semanal from anon, authenticated;
-  end if;
-end $$;
+revoke all on v_detalle_asistencia, v_resumen_comision, v_resumen_alumno,
+  v_resumen_semanal from anon, authenticated;
