@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { TURNOS, MODALIDADES, UMBRAL_REGULARIDAD, capitalizar } from "@/lib/constantes";
+import { TURNOS, UMBRAL_REGULARIDAD, capitalizar } from "@/lib/constantes";
+import { filtrarComisiones, filtrosVacios } from "@/lib/filtros";
+import SelectorFiltro from "@/components/SelectorFiltro";
 import {
   BarraApilada,
   BarrasHorizontales,
@@ -11,7 +13,6 @@ import {
   formatoPct,
 } from "./Graficos";
 
-const FILTROS_VACIOS = { carrera: "", anio: "", turno: "", modalidad: "", profesor: "" };
 const pct = (presentes, esperados) => (esperados ? presentes / esperados : null);
 
 // Suma presentes/esperados agrupando comisiones por una clave
@@ -51,33 +52,18 @@ function filasPorcentaje(grupos, etiqueta = (g) => g.clave) {
 }
 
 export default function Tablero({ comisiones, alumnos, semanal, esDirector }) {
-  const [filtros, setFiltros] = useState(FILTROS_VACIOS);
+  // El profesor ya ve solo sus comisiones: no necesita filtrar por profesor
+  const clavesFiltro = esDirector
+    ? ["carrera", "materia", "profesor", "anio", "turno", "modalidad"]
+    : ["carrera", "materia", "anio", "turno", "modalidad"];
+  const vacios = filtrosVacios(clavesFiltro);
+  const [filtros, setFiltros] = useState(vacios);
   const [verTodosRiesgo, setVerTodosRiesgo] = useState(false);
   const [verTodasComisiones, setVerTodasComisiones] = useState(false);
 
-  // Opciones de los filtros
-  const opciones = useMemo(() => {
-    const unicos = (pares) => [...new Map(pares).entries()].sort((a, b) => a[1].localeCompare(b[1], "es"));
-    return {
-      carreras: unicos(comisiones.map((c) => [c.carrera_id, c.carrera])),
-      profesores: unicos(
-        comisiones.filter((c) => c.profesor_id).map((c) => [c.profesor_id, c.profesor])
-      ),
-      anios: [...new Set(comisiones.map((c) => c.anio))].sort(),
-    };
-  }, [comisiones]);
-
   // Comisiones que pasan los filtros; todo lo demás se deriva de ellas
   const filtradas = useMemo(
-    () =>
-      comisiones.filter(
-        (c) =>
-          (!filtros.carrera || c.carrera_id === filtros.carrera) &&
-          (!filtros.anio || String(c.anio) === filtros.anio) &&
-          (!filtros.turno || c.turno === filtros.turno) &&
-          (!filtros.modalidad || c.modalidad === filtros.modalidad) &&
-          (!filtros.profesor || c.profesor_id === filtros.profesor)
-      ),
+    () => filtrarComisiones(comisiones, filtros),
     [comisiones, filtros]
   );
 
@@ -180,20 +166,6 @@ export default function Tablero({ comisiones, alumnos, semanal, esDirector }) {
     Object.entries(filtros).filter(([, v]) => v)
   ).toString();
 
-  const selector = (clave, etiqueta, items) => (
-    <label>
-      {etiqueta}
-      <select value={filtros[clave]} onChange={(e) => setFiltros({ ...filtros, [clave]: e.target.value })}>
-        <option value="">Todos</option>
-        {items.map(([valor, texto]) => (
-          <option key={valor} value={valor}>
-            {texto}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-
   if (!comisiones.length) {
     return (
       <div className="card">
@@ -207,14 +179,18 @@ export default function Tablero({ comisiones, alumnos, semanal, esDirector }) {
   return (
     <div className="viz">
       <div className="card viz-filtros">
-        {selector("carrera", "Carrera", opciones.carreras)}
-        {selector("anio", "Año", opciones.anios.map((a) => [String(a), `${a}° año`]))}
-        {selector("turno", "Turno", TURNOS.map((t) => [t, capitalizar(t)]))}
-        {selector("modalidad", "Modalidad", MODALIDADES.map((m) => [m, capitalizar(m)]))}
-        {esDirector && selector("profesor", "Profesor", opciones.profesores)}
+        {clavesFiltro.map((clave) => (
+          <SelectorFiltro
+            key={clave}
+            clave={clave}
+            comisiones={comisiones}
+            filtros={filtros}
+            setFiltros={setFiltros}
+          />
+        ))}
         <div className="acciones" style={{ alignSelf: "end", marginBottom: 10 }}>
           {hayFiltros && (
-            <button className="btn secondary chico" onClick={() => setFiltros(FILTROS_VACIOS)}>
+            <button className="btn secondary chico" onClick={() => setFiltros(vacios)}>
               Limpiar filtros
             </button>
           )}

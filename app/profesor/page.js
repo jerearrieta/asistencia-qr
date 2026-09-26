@@ -14,7 +14,7 @@ export default async function ProfesorPage() {
 
   let consultaComisiones = supabaseAdmin
     .from("v_resumen_comision")
-    .select("comision_id, carrera, materia, anio, division, turno, modalidad, profesor, inscriptos")
+    .select("comision_id, carrera_id, carrera, materia, anio, division, turno, modalidad, profesor_id, profesor, inscriptos")
     .order("carrera")
     .order("anio")
     .order("materia");

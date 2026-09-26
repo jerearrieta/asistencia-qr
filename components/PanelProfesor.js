@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { claseEstaAbierta } from "@/lib/estadoClase";
 import { ZONA_HORARIA, describirComision } from "@/lib/constantes";
+import { filtrarComisiones, filtrosVacios } from "@/lib/filtros";
+import SelectorFiltro from "@/components/SelectorFiltro";
 
 function esDeHoy(fechaIso) {
   const hoy = new Date().toLocaleDateString("en-CA", { timeZone: ZONA_HORARIA });
@@ -14,7 +16,12 @@ function esDeHoy(fechaIso) {
 
 export default function PanelProfesor({ comisiones, clasesIniciales, mostrarProfesor }) {
   const [clases, setClases] = useState(clasesIniciales || []);
-  const [carrera, setCarrera] = useState("");
+  // El director filtra también por profesor; el profesor solo ve lo suyo
+  const clavesFiltro = mostrarProfesor
+    ? ["carrera", "materia", "profesor"]
+    : ["carrera", "materia"];
+  const vacios = filtrosVacios(clavesFiltro);
+  const [filtros, setFiltros] = useState(vacios);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
 
@@ -22,11 +29,8 @@ export default function PanelProfesor({ comisiones, clasesIniciales, mostrarProf
     () => Object.fromEntries(comisiones.map((c) => [c.comision_id, c])),
     [comisiones]
   );
-  const carreras = useMemo(
-    () => [...new Set(comisiones.map((c) => c.carrera))],
-    [comisiones]
-  );
-  const visibles = comisiones.filter((c) => !carrera || c.carrera === carrera);
+  const visibles = filtrarComisiones(comisiones, filtros);
+  const hayFiltros = Object.values(filtros).some(Boolean);
 
   async function abrirClase(comisionId) {
     setError("");
@@ -80,13 +84,29 @@ export default function PanelProfesor({ comisiones, clasesIniciales, mostrarProf
             asigne tus materias.
           </p>
         )}
-        {carreras.length > 1 && (
-          <select value={carrera} onChange={(e) => setCarrera(e.target.value)}>
-            <option value="">Todas las carreras</option>
-            {carreras.map((c) => (
-              <option key={c}>{c}</option>
+        {comisiones.length > 1 && (
+          <div className="grilla-form">
+            {clavesFiltro.map((clave) => (
+              <SelectorFiltro
+                key={clave}
+                clave={clave}
+                comisiones={comisiones}
+                filtros={filtros}
+                setFiltros={setFiltros}
+              />
             ))}
-          </select>
+          </div>
+        )}
+        {hayFiltros && (
+          <p className="texto-suave">
+            Mostrando {visibles.length} de {comisiones.length} comisiones ·{" "}
+            <button className="enlace-azul" onClick={() => setFiltros(vacios)}>
+              Limpiar filtros
+            </button>
+          </p>
+        )}
+        {hayFiltros && visibles.length === 0 && (
+          <p>Ninguna comisión coincide con esos filtros.</p>
         )}
         {visibles.map((comision) => {
           const claseDeHoy = clases.find(
@@ -113,7 +133,7 @@ export default function PanelProfesor({ comisiones, clasesIniciales, mostrarProf
                   disabled={cargando}
                   onClick={() => abrirClase(comision.comision_id)}
                 >
-                  Abrir clase de hoy
+                  Abrir clase
                 </button>
               )}
             </div>

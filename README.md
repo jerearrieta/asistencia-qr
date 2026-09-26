@@ -29,8 +29,8 @@ contraseña (la inicial es el mismo DNI; después se cambia desde "Mi cuenta").
      cargo**.
    - **Padrón** de cada comisión: se pega una lista `DNI;Nombre` (sirve
      copiar dos columnas de Excel).
-2. El profesor ingresa con su DNI, ve sus comisiones y toca **"Abrir clase
-   de hoy"**.
+2. El profesor ingresa con su DNI, ve sus comisiones (puede filtrarlas por
+   carrera y materia) y toca **"Abrir clase"**.
 3. Se genera un código de 6 caracteres con expiración, y en
    `/profesor/clase/[id]` se muestra el **QR**, el **código en grande**, el
    contador y la lista del padrón con **presentes y ausentes** en vivo. El
@@ -60,7 +60,9 @@ ausentes:
 
 ## Tablero (`/tablero`)
 
-Con filtros por carrera, año, turno, modalidad y profesor:
+Con filtros por carrera, materia, profesor (solo el director), año, turno y
+modalidad. Cada filtro muestra solo las opciones compatibles con los demás
+(por ejemplo, al elegir un profesor, "Materia" lista solo sus materias):
 
 - Indicadores: asistencia promedio, alumnos inscriptos, clases dictadas y
   alumnos en riesgo (debajo del 75% en alguna materia).
@@ -191,7 +193,7 @@ Para ver qué DNIs están en el padrón de una comisión: `/admin` → Padrón.
 
 ### 5. Probar el flujo completo
 
-- Entrá como profesor (`20000001`), abrí una clase de hoy.
+- Entrá como profesor (`20000001`) y tocá **"Abrir clase"** en una comisión.
 - Abrí `/asistencia/<claseId>/<token>` en otra pestaña (o escaneá el QR
   con el celular) y registrate con un DNI del padrón de esa comisión.
 - Mirá cómo pasa de "Ausente" a "Presente" en el panel del profesor.
