@@ -4,6 +4,20 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { COOKIE_SESION, firmarSesion, opcionesCookie, inicioPorRol } from "@/lib/sesion";
 
 export async function POST(request) {
+  try {
+    return await iniciarSesion(request);
+  } catch (e) {
+    // Error de configuración (ej: falta SESSION_SECRET o las claves de
+    // Supabase): lo mostramos para que se pueda diagnosticar.
+    console.error("Error en login:", e);
+    return NextResponse.json(
+      { error: `Error del servidor: ${e.message}` },
+      { status: 500 }
+    );
+  }
+}
+
+async function iniciarSesion(request) {
   const body = await request.json();
   const dni = (body?.dni || "").trim();
   const password = body?.password || "";
@@ -15,11 +29,12 @@ export async function POST(request) {
     );
   }
 
-  const { data: usuario } = await supabaseAdmin
+  const { data: usuario, error } = await supabaseAdmin
     .from("usuarios")
     .select("id, dni, nombre, rol, password_hash")
     .eq("dni", dni)
     .maybeSingle();
+  if (error) throw new Error(`No se pudo consultar la base de datos (${error.message})`);
 
   if (!usuario || !(await bcrypt.compare(password, usuario.password_hash))) {
     return NextResponse.json(

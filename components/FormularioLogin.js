@@ -17,10 +17,10 @@ export default function FormularioLogin({ siguiente }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ dni, password }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setEnviando(false);
-      setError(data.error || "No se pudo iniciar sesión");
+      setError(data.error || `No se pudo iniciar sesión (error ${res.status})`);
       return;
     }
     // Solo seguimos a rutas internas, para evitar redirecciones a otros sitios
