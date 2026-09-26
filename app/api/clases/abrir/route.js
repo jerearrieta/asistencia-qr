@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { exigirRol } from "@/lib/auth";
 import { generarToken, minutosDeExpiracion } from "@/lib/generateToken";
-
-const ZONA_HORARIA = "America/Argentina/Cordoba";
+import { ZONA_HORARIA } from "@/lib/constantes";
 
 function rangoDeHoyUTC() {
   const fechaHoy = new Date().toLocaleDateString("en-CA", {
@@ -14,11 +14,30 @@ function rangoDeHoyUTC() {
 }
 
 export async function POST(request) {
-  const body = await request.json();
-  const cursoId = body?.cursoId;
+  const { sesion, error: sinPermiso } = await exigirRol("director", "profesor");
+  if (sinPermiso) return sinPermiso;
 
-  if (!cursoId) {
-    return NextResponse.json({ error: "Falta cursoId" }, { status: 400 });
+  const body = await request.json();
+  const comisionId = body?.comisionId;
+
+  if (!comisionId) {
+    return NextResponse.json({ error: "Falta comisionId" }, { status: 400 });
+  }
+
+  const { data: comision } = await supabaseAdmin
+    .from("comisiones")
+    .select("id, profesor_id")
+    .eq("id", comisionId)
+    .maybeSingle();
+
+  if (!comision) {
+    return NextResponse.json({ error: "No se encontró la comisión" }, { status: 404 });
+  }
+  if (sesion.rol !== "director" && comision.profesor_id !== sesion.id) {
+    return NextResponse.json(
+      { error: "Esta comisión no está a tu cargo" },
+      { status: 403 }
+    );
   }
 
   const expiraEn = new Date(
@@ -29,7 +48,7 @@ export async function POST(request) {
   const { data: existente } = await supabaseAdmin
     .from("clases")
     .select("*")
-    .eq("curso_id", cursoId)
+    .eq("comision_id", comisionId)
     .gte("fecha", inicio)
     .lte("fecha", fin)
     .order("created_at", { ascending: false })
@@ -54,7 +73,7 @@ export async function POST(request) {
   const { data, error } = await supabaseAdmin
     .from("clases")
     .insert({
-      curso_id: cursoId,
+      comision_id: comisionId,
       estado: "abierta",
       token,
       token_expira_en: expiraEn,

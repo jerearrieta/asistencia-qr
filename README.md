@@ -6,32 +6,73 @@ reemplazar la lista manual. El profesor abre una clase, se genera un QR
 escanean/tipean y quedan registrados. Al cerrar la clase, el código se
 invalida y ya nadie más puede usarlo.
 
+## Roles
+
+La app tiene tres roles. Todos ingresan en `/login` con su **DNI** y una
+contraseña (la inicial es el mismo DNI; después se cambia desde "Mi cuenta").
+
+| Rol | Qué puede hacer |
+|---|---|
+| **Director** | Administra carreras, materias, comisiones, usuarios y padrones (`/admin`). Ve el tablero completo y puede abrir clases de cualquier comisión. |
+| **Profesor** | Ve solo **sus** comisiones, abre la clase del día (QR + código), marca presentes a mano y ve el tablero de sus materias. |
+| **Alumno** | Registra su asistencia con el QR o el código (sin necesidad de iniciar sesión) y, si inicia sesión, ve su porcentaje por materia (`/alumno`). |
+
 ## Cómo funciona (resumen)
 
-1. El profesor entra a `/profesor`, crea sus cursos y toca **"Abrir clase
-   de hoy"**.
-2. Se genera un código aleatorio de 6 caracteres (ej: `K3F9QZ`) con una
-   expiración (15 minutos por defecto).
-3. En `/profesor/clase/[id]` se muestra:
-   - Un **QR** que codifica un link único (`/asistencia/<claseId>/<token>`).
-   - El **mismo código en texto grande**, por si el curso no tiene
-     computadora/proyector y el profesor solo puede dictarlo o escribirlo
-     en el pizarrón.
-   - Un contador con el tiempo restante y un botón **"Cerrar toma de
-     asistencia ahora"**.
-   - La lista de presentes en vivo (se actualiza sola) y un botón para
-     **exportar a CSV**.
-4. El alumno escanea el QR (o entra a `/asistencia` y tipea el código a
-   mano) y carga su DNI/legajo y nombre.
-5. El backend valida, en una sola operación:
-   - que la clase siga **abierta**,
-   - que el **código coincida**,
-   - que **no haya expirado**,
-   - y que ese alumno **no se haya registrado ya** (constraint UNIQUE en
-     la base de datos, no una validación "de mentira" en el frontend).
-6. Cuando el profesor cierra la clase (a mano o porque se cumplió el
-   tiempo), cualquier intento posterior de registrarse —aunque alguien
-   tenga la foto del QR— es rechazado.
+1. El director carga la **estructura académica** en `/admin`:
+   - **Carreras** (Analista en Sistemas, Marketing, …).
+   - **Materias**, indicando en qué carreras se dictan y en qué año. Una
+     materia puede estar en varias carreras (ej: Métodos Cuantitativos de
+     Gestión).
+   - **Comisiones**: una materia de una carrera con su **división, turno**
+     (mañana/tarde/noche), **modalidad** (presencial/virtual) y **profesor a
+     cargo**.
+   - **Padrón** de cada comisión: se pega una lista `DNI;Nombre` (sirve
+     copiar dos columnas de Excel).
+2. El profesor ingresa con su DNI, ve sus comisiones (puede filtrarlas por
+   carrera y materia) y toca **"Abrir clase"**.
+3. Se genera un código de 6 caracteres con expiración, y en
+   `/profesor/clase/[id]` se muestra el **QR**, el **código en grande**, el
+   contador y la lista del padrón con **presentes y ausentes** en vivo. El
+   profesor puede marcar presente a mano a quien no tenga celular.
+4. El alumno escanea el QR (o entra a `/asistencia` y tipea el código) e
+   ingresa **solo su DNI**. El backend valida que la clase esté abierta, que
+   el código sea correcto y no haya expirado, que el DNI esté en el **padrón
+   de esa comisión** y que no se haya registrado ya.
+5. Carrera, materia, año, división, turno, modalidad y profesor **no los
+   carga el alumno**: salen de la comisión de la clase. Así no hay errores de
+   tipeo y los datos del tablero son confiables.
+
+## CSV exportados
+
+Todos los CSV usan `;` como separador (Excel en español los abre en
+columnas) y traen una fila **por alumno del padrón**, incluidos los
+ausentes:
+
+`Carrera; Materia; Año; División; Turno; Modalidad; Profesor; Fecha clase; DNI; Alumno; Estado (Presente/Ausente); Método; Hora de registro`
+
+- **CSV de una clase**: desde la pantalla de la clase o "Clases recientes".
+- **CSV detallado** del tablero: todas las clases que coinciden con los
+  filtros aplicados.
+- **CSV por alumno** del tablero: una fila por alumno y materia, con clases,
+  presentes, ausentes y % de asistencia (ideal para tablas dinámicas o Power
+  BI).
+
+## Tablero (`/tablero`)
+
+Con filtros por carrera, materia, profesor (solo el director), año, turno y
+modalidad. Cada filtro muestra solo las opciones compatibles con los demás
+(por ejemplo, al elegir un profesor, "Materia" lista solo sus materias):
+
+- Indicadores: asistencia promedio, alumnos inscriptos, clases dictadas y
+  alumnos en riesgo (debajo del 75% en alguna materia).
+- Inscriptos por carrera y % de asistencia por carrera.
+- Evolución semanal de la asistencia.
+- % de asistencia por turno, por modalidad y por año de cursado.
+- Cómo se registra la asistencia (QR, código o manual).
+- Listado de alumnos en riesgo y ranking de comisiones.
+
+El director ve todo; cada profesor ve solo sus comisiones.
 
 ## Stack
 
@@ -40,48 +81,64 @@ invalida y ya nadie más puede usarlo.
 - **Supabase (Postgres)** — base de datos.
 - **Vercel** — hosting/deploy.
 - `react-qr-code` para generar el QR en el navegador.
+- `bcryptjs` para las contraseñas; la sesión es una cookie firmada
+  (HMAC) que valida el `middleware.js` según el rol.
 
 ## Estructura del proyecto
 
 ```
 asistencia-qr/
 ├─ app/
-│  ├─ page.js                          → Home (elegís profesor o alumno)
+│  ├─ page.js                          → Home
+│  ├─ login/, cuenta/                  → Ingreso con DNI / cambio de contraseña
+│  ├─ admin/page.js                    → Panel del director
+│  ├─ tablero/page.js                  → Tablero de datos
 │  ├─ profesor/
-│  │  ├─ page.js                       → Crear cursos / abrir clases
-│  │  └─ clase/[id]/page.js            → QR en vivo de una clase
+│  │  ├─ page.js                       → Comisiones del profesor / abrir clases
+│  │  └─ clase/[id]/page.js            → QR en vivo + presentes y ausentes
+│  ├─ alumno/page.js                   → "Mi asistencia" del alumno
 │  ├─ asistencia/
 │  │  ├─ page.js                       → Registro con código manual
 │  │  └─ [claseId]/[token]/page.js     → Registro al escanear el QR
 │  └─ api/
-│     ├─ cursos/route.js               → GET/POST cursos
-│     ├─ clases/abrir/route.js         → Abre una clase (genera token)
-│     ├─ clases/cerrar/route.js        → Cierra/invalida una clase
-│     ├─ clases/[id]/asistencias/route.js → Lista + export CSV
-│     └─ asistencias/registrar/route.js  → Registra una asistencia (transacción)
-├─ components/
-│  ├─ PanelProfesor.js
-│  ├─ ClaseEnVivo.js
-│  └─ FormularioAsistencia.js
-├─ lib/
-│  ├─ supabaseAdmin.js                 → Cliente Supabase (Service Role, solo server)
-│  └─ generateToken.js
-├─ supabase/schema.sql                 → Script para crear las tablas
+│     ├─ auth/                         → login, logout, cambio de contraseña
+│     ├─ admin/                        → carreras, materias, comisiones, usuarios, inscripciones
+│     ├─ clases/                       → abrir, cerrar, reabrir, asistencias (+CSV), marcado manual
+│     ├─ tablero/exportar/             → CSV del tablero
+│     └─ asistencias/registrar/        → Registra una asistencia (transacción)
+├─ components/                         → PanelProfesor, ClaseEnVivo, admin/*, tablero/*
+├─ lib/                                → sesión, permisos, CSV, consultas
+├─ middleware.js                       → Protege cada sección según el rol
+├─ supabase/schema.sql                 → Tablas y vistas
+├─ supabase/seed.sql                   → Datos de prueba ficticios
 └─ .env.local.example
 ```
 
 ## Modelo de datos
 
-- **cursos**: id, nombre
-- **clases**: id, curso_id, fecha, estado (`abierta`/`cerrada`), token,
+- **carreras**: id, nombre
+- **materias**: id, nombre
+- **carrera_materias**: carrera_id, materia_id, anio (una materia puede
+  estar en varias carreras, en distinto año)
+- **usuarios**: id, dni (único), nombre, rol (`director`/`profesor`/`alumno`),
+  password_hash, carrera_id (alumnos)
+- **comisiones**: id, carrera_id, materia_id, division, turno, modalidad,
+  profesor_id
+- **inscripciones** (padrón): comision_id, alumno_id
+- **clases**: id, comision_id, fecha, estado (`abierta`/`cerrada`), token,
   token_expira_en
-- **asistencias**: id, clase_id, dni_alumno, nombre_alumno, metodo
-  (`qr`/`codigo`), registrado_en — con `UNIQUE(clase_id, dni_alumno)`
-  para que un alumno no pueda marcarse dos veces en la misma clase.
+- **asistencias**: id, clase_id, alumno_id, dni_alumno, nombre_alumno,
+  metodo (`qr`/`codigo`/`manual`), dispositivo_id, registrado_en — con
+  `UNIQUE(clase_id, dni_alumno)` y `UNIQUE(clase_id, dispositivo_id)`.
+
+Vistas para el tablero y los CSV: `v_detalle_asistencia` (una fila por
+alumno del padrón y clase, presente o ausente), `v_resumen_comision`,
+`v_resumen_alumno` y `v_resumen_semanal`.
 
 Todas las escrituras y lecturas pasan por las API Routes de Next.js, que
 usan la **Service Role Key** de Supabase (nunca se expone al navegador).
-Por eso el cliente nunca habla directo con la base de datos.
+Las tablas tienen RLS activado sin políticas y las vistas usan
+`security_invoker`, así que las claves públicas no pueden leer nada.
 
 ## Puesta en marcha
 
@@ -89,8 +146,11 @@ Por eso el cliente nunca habla directo con la base de datos.
 
 1. Andá a [supabase.com](https://supabase.com), creá un proyecto nuevo.
 2. En el **SQL Editor**, pegá y ejecutá el contenido de
-   `supabase/schema.sql`.
-3. En **Settings → API**, copiá:
+   `supabase/schema.sql`. ⚠️ Borra las tablas anteriores (arranca de cero).
+3. (Opcional, recomendado para la demo) Ejecutá `supabase/seed.sql` para
+   cargar datos ficticios: 10 carreras, sus materias, ~110 comisiones,
+   20 profesores, ~880 alumnos y 12 semanas de asistencias.
+4. En **Settings → API**, copiá:
    - `Project URL`
    - `service_role` key (⚠️ no la `anon` key, esa no la vas a necesitar)
 
@@ -100,12 +160,13 @@ Por eso el cliente nunca habla directo con la base de datos.
 cp .env.local.example .env.local
 ```
 
-Completá `.env.local` con los datos de Supabase:
+Completá `.env.local`:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://tuproyecto.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
 CLASE_EXPIRA_MINUTOS=15
+SESSION_SECRET=un-texto-largo-y-aleatorio
 ```
 
 ### 3. Instalar y correr en local
@@ -117,22 +178,33 @@ npm run dev
 
 Abrí `http://localhost:3000`.
 
-### 4. Probar el flujo completo
+### 4. Usuarios de prueba (si cargaste `seed.sql`)
 
-- Entrá a `/profesor`, creá un curso y abrí una clase.
+La contraseña inicial de todos es **su propio DNI**.
+
+| Rol | DNI |
+|---|---|
+| Director | `11111111` |
+| Profesor de Métodos Cuantitativos de Gestión | `20000001` |
+| Otros profesores | `20000002` a `20000020` |
+| Alumnos | `40000001` en adelante |
+
+Para ver qué DNIs están en el padrón de una comisión: `/admin` → Padrón.
+
+### 5. Probar el flujo completo
+
+- Entrá como profesor (`20000001`) y tocá **"Abrir clase"** en una comisión.
 - Abrí `/asistencia/<claseId>/<token>` en otra pestaña (o escaneá el QR
-  con el celular, apuntando a la IP de tu compu en la red local en vez
-  de `localhost`) y registrate.
-- Mirá cómo aparece en la lista de presentes del panel del profesor.
-- Probá cerrar la clase y verificá que un nuevo intento de registro dé
-  error.
+  con el celular) y registrate con un DNI del padrón de esa comisión.
+- Mirá cómo pasa de "Ausente" a "Presente" en el panel del profesor.
+- Entrá como director (`11111111`) y mirá el tablero.
 
-### 5. Deploy a Vercel
+### 6. Deploy a Vercel
 
 1. Subí el proyecto a un repo de GitHub.
 2. Importalo en [vercel.com](https://vercel.com).
 3. Cargá las mismas variables de entorno (`NEXT_PUBLIC_SUPABASE_URL`,
-   `SUPABASE_SERVICE_ROLE_KEY`, `CLASE_EXPIRA_MINUTOS`) en
+   `SUPABASE_SERVICE_ROLE_KEY`, `CLASE_EXPIRA_MINUTOS`, `SESSION_SECRET`) en
    **Settings → Environment Variables**.
 4. Deploy. Listo, ya tenés una URL pública para usar desde el celular en
    el aula.
@@ -152,25 +224,15 @@ Ambos caminos escriben en la misma tabla `asistencias`, con el campo
 
 ## Limitaciones actuales / próximos pasos
 
-Esto es un MVP funcional, pensado para un curso o unos pocos cursos.
-Cosas para sumar si lo llevás a producción real:
-
-- **Autenticación del profesor**: hoy `/profesor` es público. Sumar
-  Supabase Auth (magic link) para que solo el docente pueda abrir/cerrar
-  clases.
-- **Validar contra una lista de alumnos inscriptos**: hoy cualquier
-  DNI/nombre se acepta. Se puede agregar una tabla `alumnos` con el
-  padrón del curso y rechazar DNIs que no estén anotados.
-- **QR rotativo**: para blindar aún más contra el caso de que alguien
-  reenvíe la foto del QR a un compañero ausente *antes* de que se cierre
-  la clase, se puede hacer que el token cambie cada 15-20 segundos
-  (mismo mecanismo que el check-in de Google Meet). Con el diseño actual
-  es un cambio acotado: alcanza con regenerar el `token` periódicamente
-  desde el frontend del profesor y actualizarlo en la base.
-- **Row Level Security**: las tablas ya tienen RLS activado sin
-  políticas para el rol `anon`, como capa extra de seguridad, ya que hoy
-  todo pasa por el backend con la Service Role Key.
-- **Geolocalización/red del aula** (opcional, más avanzado): exigir que
-  el registro se haga desde una IP o rango de GPS específico, para
-  reducir aún más el registro remoto.
-# asistencia-qr
+- **Planes de estudio aproximados**: las materias de `seed.sql` son una
+  aproximación armada a partir de información pública del IES; conviene
+  revisarlas contra los planes oficiales.
+- **Datos de prueba ficticios**: nombres, DNIs y asistencias de `seed.sql`
+  son inventados para poder mostrar el tablero.
+- **QR rotativo**: para evitar que alguien reenvíe la foto del QR antes de
+  que cierre la clase, se puede hacer que el token cambie cada 15-20
+  segundos.
+- **Geolocalización/red del aula** (opcional): exigir que el registro se
+  haga desde una IP o rango de GPS específico.
+- **Recuperar contraseña por mail**: hoy la restablece el director (vuelve
+  a ser el DNI).

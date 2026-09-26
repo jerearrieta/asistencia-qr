@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "react-qr-code";
 import { claseEstaAbierta } from "@/lib/estadoClase";
+import { ZONA_HORARIA, describirComision } from "@/lib/constantes";
 
-export default function ClaseEnVivo({ clase: claseInicial }) {
+export default function ClaseEnVivo({ clase: claseInicial, comision }) {
   const [clase, setClase] = useState(claseInicial);
-  const [asistencias, setAsistencias] = useState([]);
+  const [padron, setPadron] = useState([]);
   const [segundosRestantes, setSegundosRestantes] = useState(0);
   const [cargando, setCargando] = useState(false);
-  const [editandoTitulo, setEditandoTitulo] = useState(false);
-  const [tituloEditado, setTituloEditado] = useState(clase.cursos?.nombre || "");
   const cierreDisparado = useRef(false);
 
   const urlQr = useMemo(() => {
@@ -63,23 +62,19 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
     };
   }, [clase.token_expira_en, clase.estado, clase.id]);
 
-  useEffect(() => {
-    let activo = true;
-    async function cargar() {
-      const res = await fetch(`/api/clases/${clase.id}/asistencias`);
-      if (!activo) return;
-      if (res.ok) {
-        const data = await res.json();
-        setAsistencias(data.asistencias || []);
-      }
+  const cargarPadron = useCallback(async () => {
+    const res = await fetch(`/api/clases/${clase.id}/asistencias`);
+    if (res.ok) {
+      const data = await res.json();
+      setPadron(data.padron || []);
     }
-    cargar();
-    const id = setInterval(cargar, 4000);
-    return () => {
-      activo = false;
-      clearInterval(id);
-    };
   }, [clase.id]);
+
+  useEffect(() => {
+    cargarPadron();
+    const id = setInterval(cargarPadron, 4000);
+    return () => clearInterval(id);
+  }, [cargarPadron]);
 
   async function cerrarClase() {
     setCargando(true);
@@ -106,65 +101,30 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
     if (res.ok) setClase(data.clase);
   }
 
-  async function guardarTitulo() {
-    if (!tituloEditado.trim()) return;
+  async function marcarManual(alumno, presente) {
     setCargando(true);
-    const res = await fetch(`/api/cursos/${clase.curso_id}`, {
-      method: "PATCH",
+    await fetch(`/api/clases/${clase.id}/manual`, {
+      method: presente ? "POST" : "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nombre: tituloEditado }),
+      body: JSON.stringify({ alumnoId: alumno.alumno_id }),
     });
-    const data = await res.json();
+    await cargarPadron();
     setCargando(false);
-    if (res.ok) {
-      setClase({ ...clase, cursos: { ...clase.cursos, nombre: data.curso.nombre } });
-      setEditandoTitulo(false);
-    }
   }
 
   const estaAbierta = claseEstaAbierta(clase) && segundosRestantes > 0;
+  const presentes = padron
+    .filter((a) => a.presente)
+    .sort((a, b) => new Date(a.registrado_en) - new Date(b.registrado_en));
+  const ausentes = padron.filter((a) => !a.presente);
 
   return (
     <div>
-      {editandoTitulo ? (
-        <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-          <input
-            style={{ margin: 0 }}
-            value={tituloEditado}
-            onChange={(e) => setTituloEditado(e.target.value)}
-            autoFocus
-          />
-          <button className="btn" disabled={cargando} onClick={guardarTitulo}>
-            Guardar
-          </button>
-          <button
-            className="btn secondary"
-            onClick={() => setEditandoTitulo(false)}
-          >
-            Cancelar
-          </button>
-        </div>
-      ) : (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 12,
-          }}
-        >
-          <h2 style={{ margin: 0 }}>{clase.cursos?.nombre}</h2>
-          <button
-            className="btn secondary"
-            onClick={() => {
-              setTituloEditado(clase.cursos?.nombre || "");
-              setEditandoTitulo(true);
-            }}
-          >
-            Editar título
-          </button>
-        </div>
-      )}
+      <h2 style={{ marginBottom: 4 }}>{describirComision(comision)}</h2>
+      <p className="texto-suave" style={{ marginTop: 0 }}>
+        {comision.carrera} · {comision.profesor || "Sin profesor asignado"} ·{" "}
+        {new Date(clase.fecha).toLocaleDateString("es-AR")}
+      </p>
 
       <div className="card">
         {estaAbierta ? (
@@ -209,38 +169,73 @@ export default function ClaseEnVivo({ clase: claseInicial }) {
       </div>
 
       <div className="card">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <h3>Presentes ({asistencias.length})</h3>
-          <a className="btn secondary" href={`/api/clases/${clase.id}/asistencias?formato=csv`} target="_blank" rel="noopener noreferrer">
+        <div className="fila-lista" style={{ borderBottom: "none" }}>
+          <h3 style={{ margin: 0 }}>
+            Presentes {presentes.length} de {padron.length}
+          </h3>
+          <a
+            className="btn secondary"
+            href={`/api/clases/${clase.id}/asistencias?formato=csv`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Exportar CSV
           </a>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>DNI/Legajo</th>
-              <th>Nombre</th>
-              <th>Método</th>
-              <th>Hora</th>
-            </tr>
-          </thead>
-          <tbody>
-            {asistencias.map((a) => (
-              <tr key={a.id}>
-                <td>{a.dni_alumno}</td>
-                <td>{a.nombre_alumno || "-"}</td>
-                <td>{a.metodo}</td>
-                <td>{new Date(a.registrado_en).toLocaleTimeString()}</td>
+        {padron.length === 0 && (
+          <p className="texto-suave">
+            Esta comisión no tiene alumnos en el padrón. El director puede
+            cargarlos desde Administración → Padrón.
+          </p>
+        )}
+        <div className="tabla-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>DNI</th>
+                <th>Alumno</th>
+                <th>Estado</th>
+                <th>Método</th>
+                <th>Hora</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {[...presentes, ...ausentes].map((a) => (
+                <tr key={a.alumno_id}>
+                  <td>{a.dni}</td>
+                  <td>{a.alumno}</td>
+                  <td
+                    style={{
+                      color: a.presente ? "#16a34a" : "#dc2626",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {a.presente ? "Presente" : "Ausente"}
+                  </td>
+                  <td>{a.metodo || "-"}</td>
+                  <td>
+                    {a.registrado_en
+                      ? new Date(a.registrado_en).toLocaleTimeString("es-AR", {
+                          timeZone: ZONA_HORARIA,
+                          hour12: false,
+                        })
+                      : "-"}
+                  </td>
+                  <td>
+                    <button
+                      className={`btn chico ${a.presente ? "secondary" : ""}`}
+                      disabled={cargando}
+                      onClick={() => marcarManual(a, !a.presente)}
+                    >
+                      {a.presente ? "Quitar" : "Marcar presente"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

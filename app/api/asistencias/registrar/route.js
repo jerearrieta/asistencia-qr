@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(request) {
   const body = await request.json();
-  const { claseId, token, dni, nombre, metodo, dispositivoId } = body || {};
+  const { claseId, token, dni, metodo, dispositivoId } = body || {};
 
   const dniLimpio = (dni || "").trim();
   if (!dniLimpio) {
@@ -17,9 +17,16 @@ export async function POST(request) {
   }
 
   let query = supabaseAdmin.from("clases").select("*");
-  query = claseId ? query.eq("id", claseId) : query.eq("token", token);
+  // Con código manual buscamos entre las clases abiertas: un código viejo
+  // de otra clase ya cerrada podría repetirse.
+  query = claseId
+    ? query.eq("id", claseId)
+    : query.eq("token", token).eq("estado", "abierta");
 
-  const { data: clase, error: errorClase } = await query.single();
+  const { data: clase, error: errorClase } = await query
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (errorClase || !clase) {
     return NextResponse.json(
@@ -44,12 +51,33 @@ export async function POST(request) {
     );
   }
 
+  // El DNI tiene que estar en el padrón de la comisión: así el nombre sale
+  // del padrón (sin errores de tipeo) y podemos calcular quién faltó.
+  const { data: alumno } = await supabaseAdmin
+    .from("usuarios")
+    .select("id, dni, nombre, inscripciones!inner(comision_id)")
+    .eq("dni", dniLimpio)
+    .eq("rol", "alumno")
+    .eq("inscripciones.comision_id", clase.comision_id)
+    .maybeSingle();
+
+  if (!alumno) {
+    return NextResponse.json(
+      {
+        error:
+          "Tu DNI no figura en el padrón de esta materia. Consultá con el profesor.",
+      },
+      { status: 403 }
+    );
+  }
+
   const { data, error } = await supabaseAdmin
     .from("asistencias")
     .insert({
       clase_id: clase.id,
-      dni_alumno: dniLimpio,
-      nombre_alumno: (nombre || "").trim() || null,
+      alumno_id: alumno.id,
+      dni_alumno: alumno.dni,
+      nombre_alumno: alumno.nombre,
       metodo: metodo === "codigo" ? "codigo" : "qr",
       dispositivo_id: dispositivoId || null,
     })
@@ -69,5 +97,8 @@ export async function POST(request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ asistencia: data }, { status: 201 });
+  return NextResponse.json(
+    { asistencia: data, nombre: alumno.nombre },
+    { status: 201 }
+  );
 }

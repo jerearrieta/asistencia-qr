@@ -7,9 +7,9 @@ export default function FormularioAsistencia({
   claseId,
   tokenInicial,
   pedirCodigo,
+  dniInicial,
 }) {
-  const [dni, setDni] = useState("");
-  const [nombre, setNombre] = useState("");
+  const [dni, setDni] = useState(dniInicial || "");
   const [codigo, setCodigo] = useState(tokenInicial || "");
   const [estado, setEstado] = useState("idle");
   const [mensaje, setMensaje] = useState("");
@@ -26,7 +26,6 @@ export default function FormularioAsistencia({
         claseId: claseId || undefined,
         token: codigo.trim().toUpperCase(),
         dni,
-        nombre,
         metodo: pedirCodigo ? "codigo" : "qr",
         dispositivoId: obtenerDispositivoId(),
       }),
@@ -40,7 +39,7 @@ export default function FormularioAsistencia({
     }
 
     setEstado("ok");
-    setMensaje("¡Asistencia registrada correctamente!");
+    setMensaje(`¡Listo, ${data.nombre}! Tu asistencia quedó registrada.`);
   }
 
   if (estado === "ok") {
@@ -59,15 +58,11 @@ export default function FormularioAsistencia({
         />
       )}
       <input
-        placeholder="DNI o legajo"
+        placeholder="DNI"
+        inputMode="numeric"
         value={dni}
         onChange={(e) => setDni(e.target.value)}
         required
-      />
-      <input
-        placeholder="Nombre y apellido"
-        value={nombre}
-        onChange={(e) => setNombre(e.target.value)}
       />
       <button className="btn" disabled={estado === "enviando"}>
         {estado === "enviando" ? "Enviando..." : "Registrar asistencia"}
