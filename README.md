@@ -31,10 +31,14 @@ contraseña (la inicial es el mismo DNI; después se cambia desde "Mi cuenta").
      copiar dos columnas de Excel).
 2. El profesor ingresa con su DNI, ve sus comisiones (puede filtrarlas por
    carrera y materia) y toca **"Abrir clase"**.
-3. Se genera un código de 6 caracteres con expiración, y en
+3. Se abre la toma de asistencia con expiración, y en
    `/profesor/clase/[id]` se muestra el **QR**, el **código en grande**, el
    contador y la lista del padrón con **presentes y ausentes** en vivo. El
    profesor puede marcar presente a mano a quien no tenga celular.
+   El QR y el código **rotan cada 20 segundos** (`QR_ROTACION_SEGUNDOS`):
+   una foto reenviada por WhatsApp deja de servir enseguida. Se aceptan el
+   código actual y el anterior desde el QR, y hasta los dos anteriores
+   tipeado. Quien abre un QR vigente tiene 3 minutos para completar el DNI.
 4. El alumno escanea el QR (o entra a `/asistencia` y tipea el código) e
    ingresa **solo su DNI**. El backend valida que la clase esté abierta, que
    el código sea correcto y no haya expirado, que el DNI esté en el **padrón
@@ -184,8 +188,12 @@ Completá `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=https://tuproyecto.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
 CLASE_EXPIRA_MINUTOS=15
+QR_ROTACION_SEGUNDOS=20
 SESSION_SECRET=un-texto-largo-y-aleatorio
 ```
+
+`QR_ROTACION_SEGUNDOS=0` desactiva la rotación y deja un código fijo por
+clase (sirve si el profesor lo escribe en el pizarrón).
 
 ### 3. Instalar y correr en local
 
@@ -222,7 +230,8 @@ Para ver qué DNIs están en el padrón de una comisión: `/admin` → Padrón.
 1. Subí el proyecto a un repo de GitHub.
 2. Importalo en [vercel.com](https://vercel.com).
 3. Cargá las mismas variables de entorno (`NEXT_PUBLIC_SUPABASE_URL`,
-   `SUPABASE_SERVICE_ROLE_KEY`, `CLASE_EXPIRA_MINUTOS`, `SESSION_SECRET`) en
+   `SUPABASE_SERVICE_ROLE_KEY`, `CLASE_EXPIRA_MINUTOS`, `QR_ROTACION_SEGUNDOS`,
+   `SESSION_SECRET`) en
    **Settings → Environment Variables**.
 4. Deploy. Listo, ya tenés una URL pública para usar desde el celular en
    el aula.
@@ -234,8 +243,10 @@ siempre muestra el **código en texto grande**. El profesor puede:
 
 - Mostrar esa pantalla desde **su propio celular** (no hace falta
   proyector), o
-- Simplemente **dictarlo o escribirlo en el pizarrón**, y los alumnos lo
-  tipean en `/asistencia` desde el suyo.
+- Simplemente **dictarlo**, y los alumnos lo tipean en `/asistencia` desde
+  el suyo (el código dictado vale unos 40–60 segundos).
+- Para **escribirlo en el pizarrón** conviene un código fijo:
+  `QR_ROTACION_SEGUNDOS=0`.
 
 Ambos caminos escriben en la misma tabla `asistencias`, con el campo
 `metodo` (`qr` o `codigo`) para distinguir cómo se registró cada uno.
@@ -247,9 +258,6 @@ Ambos caminos escriben en la misma tabla `asistencias`, con el campo
   revisarlas contra los planes oficiales.
 - **Datos de prueba ficticios**: nombres, DNIs y asistencias de `seed.sql`
   son inventados para poder mostrar el tablero.
-- **QR rotativo**: para evitar que alguien reenvíe la foto del QR antes de
-  que cierre la clase, se puede hacer que el token cambie cada 15-20
-  segundos.
 - **Geolocalización/red del aula** (opcional): exigir que el registro se
   haga desde una IP o rango de GPS específico.
 - **Recuperar contraseña por mail**: hoy la restablece el director (vuelve

@@ -6,12 +6,12 @@ import { obtenerDispositivoId } from "@/lib/dispositivo";
 
 export default function FormularioAsistencia({
   claseId,
-  tokenInicial,
+  pase,
   pedirCodigo,
   dniInicial,
 }) {
   const [dni, setDni] = useState(dniInicial || "");
-  const [codigo, setCodigo] = useState(tokenInicial || "");
+  const [codigo, setCodigo] = useState("");
   const [estado, setEstado] = useState("idle");
   const [mensaje, setMensaje] = useState("");
   const [nombre, setNombre] = useState("");
@@ -26,7 +26,8 @@ export default function FormularioAsistencia({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         claseId: claseId || undefined,
-        token: codigo.trim().toUpperCase(),
+        token: pedirCodigo ? codigo.trim().toUpperCase() : undefined,
+        pase,
         dni,
         metodo: pedirCodigo ? "codigo" : "qr",
         dispositivoId: obtenerDispositivoId(),
