@@ -35,10 +35,10 @@ contraseña (la inicial es el mismo DNI; después se cambia desde "Mi cuenta").
    `/profesor/clase/[id]` se muestra el **QR**, el **código en grande**, el
    contador y la lista del padrón con **presentes y ausentes** en vivo. El
    profesor puede marcar presente a mano a quien no tenga celular.
-   El QR y el código **rotan cada 20 segundos** (`QR_ROTACION_SEGUNDOS`):
+   El QR y el código **rotan cada 1 minuto** (`QR_ROTACION_SEGUNDOS`):
    una foto reenviada por WhatsApp deja de servir enseguida. Se aceptan el
-   código actual y el anterior desde el QR, y hasta los dos anteriores
-   tipeado. Quien abre un QR vigente tiene 3 minutos para completar el DNI.
+   código actual y el anterior, así que cada código vale entre 1 y 2
+   minutos. Quien abre un QR vigente tiene 3 minutos para completar el DNI.
 4. El alumno escanea el QR (o entra a `/asistencia` y tipea el código) e
    ingresa **solo su DNI**. El backend valida que la clase esté abierta, que
    el código sea correcto y no haya expirado, que el DNI esté en el **padrón
@@ -188,7 +188,7 @@ Completá `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=https://tuproyecto.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
 CLASE_EXPIRA_MINUTOS=15
-QR_ROTACION_SEGUNDOS=20
+QR_ROTACION_SEGUNDOS=60
 SESSION_SECRET=un-texto-largo-y-aleatorio
 ```
 
@@ -244,7 +244,7 @@ siempre muestra el **código en texto grande**. El profesor puede:
 - Mostrar esa pantalla desde **su propio celular** (no hace falta
   proyector), o
 - Simplemente **dictarlo**, y los alumnos lo tipean en `/asistencia` desde
-  el suyo (el código dictado vale unos 40–60 segundos).
+  el suyo (el código dictado vale entre 1 y 2 minutos).
 - Para **escribirlo en el pizarrón** conviene un código fijo:
   `QR_ROTACION_SEGUNDOS=0`.
 
