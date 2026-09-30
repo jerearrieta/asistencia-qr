@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  GRACIA_CODIGO,
+  GRACIA_QR,
+  codigoValido,
+  paseValido,
+} from "@/lib/codigoRotativo";
 
 export async function POST(request) {
   const body = await request.json();
-  const { claseId, token, dni, metodo, dispositivoId } = body || {};
+  const { claseId, token, pase, dni, metodo, dispositivoId } = body || {};
 
   const dniLimpio = (dni || "").trim();
   if (!dniLimpio) {
@@ -12,23 +18,36 @@ export async function POST(request) {
       { status: 400 }
     );
   }
-  if (!token) {
+  if (!token && !pase) {
     return NextResponse.json({ error: "Falta el código" }, { status: 400 });
   }
 
-  let query = supabaseAdmin.from("clases").select("*");
-  // Con código manual buscamos entre las clases abiertas: un código viejo
-  // de otra clase ya cerrada podría repetirse.
-  query = claseId
-    ? query.eq("id", claseId)
-    : query.eq("token", token).eq("estado", "abierta");
+  let clase;
+  if (claseId) {
+    const { data } = await supabaseAdmin
+      .from("clases")
+      .select("*")
+      .eq("id", claseId)
+      .maybeSingle();
+    clase = data;
+  } else {
+    // Con código manual buscamos entre las clases abiertas y vigentes cuál
+    // tiene hoy ese código (el código rota y no se guarda en la base).
+    const { data } = await supabaseAdmin
+      .from("clases")
+      .select("*")
+      .eq("estado", "abierta")
+      .gt("token_expira_en", new Date().toISOString());
+    clase = (data || []).find((c) => codigoValido(c, token, GRACIA_CODIGO));
+    if (!clase) {
+      return NextResponse.json(
+        { error: "Código inválido o vencido. Fijate el que muestra el profesor ahora." },
+        { status: 401 }
+      );
+    }
+  }
 
-  const { data: clase, error: errorClase } = await query
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (errorClase || !clase) {
+  if (!clase) {
     return NextResponse.json(
       { error: "No se encontró la clase indicada" },
       { status: 404 }
@@ -41,13 +60,21 @@ export async function POST(request) {
       { status: 409 }
     );
   }
-  if (clase.token !== token) {
-    return NextResponse.json({ error: "Código inválido" }, { status: 401 });
-  }
   if (new Date(clase.token_expira_en).getTime() < Date.now()) {
     return NextResponse.json(
       { error: "El código expiró, pedile al profesor uno nuevo" },
       { status: 410 }
+    );
+  }
+  // Desde el QR llega un pase firmado al abrir la página; si no, el código
+  // tiene que ser uno de los últimos que mostró la pantalla del profesor.
+  const autorizado = pase
+    ? paseValido(pase, clase.id)
+    : codigoValido(clase, token, claseId ? GRACIA_QR : GRACIA_CODIGO);
+  if (!autorizado) {
+    return NextResponse.json(
+      { error: "El código ya cambió. Escaneá el QR que está en pantalla ahora." },
+      { status: 401 }
     );
   }
 

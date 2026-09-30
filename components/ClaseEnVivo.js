@@ -20,12 +20,53 @@ export default function ClaseEnVivo({ clase: claseInicial, comision, duracionSeg
   const [marcando, setMarcando] = useState(null);
   const [copiado, setCopiado] = useState(false);
   const [busqueda, setBusqueda] = useState("");
+  const [codigo, setCodigo] = useState(null);
+  const [segundosParaCambio, setSegundosParaCambio] = useState(null);
   const cierreDisparado = useRef(false);
+  const cambioEn = useRef(null);
 
   const urlQr = useMemo(() => {
-    if (typeof window === "undefined") return "";
-    return `${window.location.origin}/asistencia/${clase.id}/${clase.token}`;
-  }, [clase.id, clase.token]);
+    if (typeof window === "undefined" || !codigo) return "";
+    return `${window.location.origin}/asistencia/${clase.id}/${codigo}`;
+  }, [clase.id, codigo]);
+
+  // El código rota: el servidor dice cuál mostrar y cuánto falta para el
+  // próximo, y se vuelve a pedir justo después de cada cambio.
+  const claseAbierta = claseEstaAbierta(clase);
+  useEffect(() => {
+    if (!claseAbierta) {
+      setCodigo(null);
+      return;
+    }
+    let cancelado = false;
+    let espera;
+
+    const pedir = async () => {
+      let proximo = 5000;
+      try {
+        const res = await fetch(`/api/clases/${clase.id}/codigo`, { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (cancelado) return;
+          setCodigo(data.codigo);
+          if (data.msParaCambio != null) {
+            cambioEn.current = Date.now() + data.msParaCambio;
+            proximo = data.msParaCambio + 250;
+          } else {
+            cambioEn.current = null;
+            proximo = null;
+          }
+        }
+      } catch {}
+      if (!cancelado && proximo != null) espera = setTimeout(pedir, proximo);
+    };
+
+    pedir();
+    return () => {
+      cancelado = true;
+      clearTimeout(espera);
+    };
+  }, [clase.id, claseAbierta, clase.token_expira_en]);
 
   // Un solo efecto que, en cada tick, calcula el tiempo restante DIRECTO
   // desde clase.token_expira_en (nunca desde el segundosRestantes viejo).
@@ -44,6 +85,11 @@ export default function ClaseEnVivo({ clase: claseInicial, comision, duracionSeg
         )
       );
       setSegundosRestantes(restante);
+      setSegundosParaCambio(
+        cambioEn.current
+          ? Math.max(0, Math.ceil((cambioEn.current - Date.now()) / 1000))
+          : null
+      );
 
       if (
         restante === 0 &&
@@ -124,7 +170,7 @@ export default function ClaseEnVivo({ clase: claseInicial, comision, duracionSeg
 
   async function copiarCodigo() {
     try {
-      await navigator.clipboard.writeText(clase.token);
+      await navigator.clipboard.writeText(codigo);
       setCopiado(true);
       setTimeout(() => setCopiado(false), 1600);
     } catch {}
@@ -177,14 +223,20 @@ export default function ClaseEnVivo({ clase: claseInicial, comision, duracionSeg
               </div>
               <div>
                 <div className="qr-wrap">
-                  <QRCode value={urlQr} size={240} />
+                  {urlQr ? (
+                    <QRCode value={urlQr} size={240} />
+                  ) : (
+                    <div style={{ width: 240, height: 240, display: "grid", placeItems: "center" }}>
+                      <span className="spinner" />
+                    </div>
+                  )}
                 </div>
               </div>
               <p className="texto-suave" style={{ marginBottom: 8 }}>
                 Sin cámara, entran a <strong>/asistencia</strong> con el código:
               </p>
               <div className="codigo-caja">
-                <span className="token-grande">{clase.token}</span>
+                <span className="token-grande">{codigo || "······"}</span>
                 <button
                   className="btn ghost icono"
                   onClick={copiarCodigo}
@@ -194,6 +246,11 @@ export default function ClaseEnVivo({ clase: claseInicial, comision, duracionSeg
                   {copiado ? <Check size={16} /> : <Copy size={16} />}
                 </button>
               </div>
+              {segundosParaCambio != null && (
+                <p className="texto-suave" style={{ marginTop: 8 }}>
+                  El código cambia en {segundosParaCambio}s: una foto reenviada deja de servir.
+                </p>
+              )}
               <div className="cuenta-regresiva">
                 <div className="fila">
                   <span>Se cierra sola en</span>
@@ -219,8 +276,8 @@ export default function ClaseEnVivo({ clase: claseInicial, comision, duracionSeg
               </div>
               <h3>Toma de asistencia cerrada</h3>
               <p>
-                El código <strong>{clase.token}</strong> ya no es válido. Si
-                alguien llegó tarde, podés reabrirla o marcarlo a mano.
+                El código ya no es válido. Si alguien llegó tarde, podés
+                reabrirla o marcarlo a mano.
               </p>
               <button className="btn" style={{ marginTop: 16 }} onClick={reabrirClase} disabled={cargando}>
                 <RotateCcw size={16} /> Reabrir clase
