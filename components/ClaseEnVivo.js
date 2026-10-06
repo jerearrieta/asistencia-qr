@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "react-qr-code";
 import { claseEstaAbierta } from "@/lib/estadoClase";
-import { Check, Copy, Download, Lock, RotateCcw, Search, UserCheck, UserPlus, UserX } from "lucide-react";
+import { Download, Lock, RotateCcw, Search, Smartphone, UserCheck, UserPlus, UserX } from "lucide-react";
 import { ZONA_HORARIA, capitalizar, iniciales } from "@/lib/constantes";
 
 function formatoTiempo(seg) {
@@ -15,10 +15,12 @@ function formatoTiempo(seg) {
 export default function ClaseEnVivo({ clase: claseInicial, comision, duracionSeg }) {
   const [clase, setClase] = useState(claseInicial);
   const [padron, setPadron] = useState([]);
+  const [pedidos, setPedidos] = useState([]);
+  const [resolviendo, setResolviendo] = useState(null);
+  const [errorPedido, setErrorPedido] = useState("");
   const [segundosRestantes, setSegundosRestantes] = useState(0);
   const [cargando, setCargando] = useState(false);
   const [marcando, setMarcando] = useState(null);
-  const [copiado, setCopiado] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [codigo, setCodigo] = useState(null);
   const [segundosParaCambio, setSegundosParaCambio] = useState(null);
@@ -123,6 +125,7 @@ export default function ClaseEnVivo({ clase: claseInicial, comision, duracionSeg
     if (res.ok) {
       const data = await res.json();
       setPadron(data.padron || []);
+      setPedidos(data.pedidos || []);
     }
   }, [clase.id]);
 
@@ -168,12 +171,22 @@ export default function ClaseEnVivo({ clase: claseInicial, comision, duracionSeg
     setMarcando(null);
   }
 
-  async function copiarCodigo() {
-    try {
-      await navigator.clipboard.writeText(codigo);
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 1600);
-    } catch {}
+  // Un alumno escaneó desde un celular distinto al vinculado: el profesor
+  // pasa su DNI al celular nuevo (y queda presente) o descarta el pedido.
+  async function resolverPedido(pedido, accion) {
+    setResolviendo(pedido.alumno_id);
+    setErrorPedido("");
+    const res = await fetch(`/api/clases/${clase.id}/pedidos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alumnoId: pedido.alumno_id, accion }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setErrorPedido(data.error || "No se pudo resolver el pedido");
+    }
+    await cargarPadron();
+    setResolviendo(null);
   }
 
   const estaAbierta = claseEstaAbierta(clase) && segundosRestantes > 0;
@@ -232,23 +245,9 @@ export default function ClaseEnVivo({ clase: claseInicial, comision, duracionSeg
                   )}
                 </div>
               </div>
-              <p className="texto-suave" style={{ marginBottom: 8 }}>
-                Sin cámara, entran a <strong>/asistencia</strong> con el código:
-              </p>
-              <div className="codigo-caja">
-                <span className="token-grande">{codigo || "······"}</span>
-                <button
-                  className="btn ghost icono"
-                  onClick={copiarCodigo}
-                  title="Copiar código"
-                  aria-label="Copiar código"
-                >
-                  {copiado ? <Check size={16} /> : <Copy size={16} />}
-                </button>
-              </div>
               {segundosParaCambio != null && (
                 <p className="texto-suave" style={{ marginTop: 8 }}>
-                  El código cambia en {segundosParaCambio}s: una foto reenviada deja de servir.
+                  El QR cambia en {segundosParaCambio}s: una foto reenviada deja de servir.
                 </p>
               )}
               <div className="cuenta-regresiva">
@@ -276,7 +275,7 @@ export default function ClaseEnVivo({ clase: claseInicial, comision, duracionSeg
               </div>
               <h3>Toma de asistencia cerrada</h3>
               <p>
-                El código ya no es válido. Si alguien llegó tarde, podés
+                El QR ya no es válido. Si alguien llegó tarde, podés
                 reabrirla o marcarlo a mano.
               </p>
               <button className="btn" style={{ marginTop: 16 }} onClick={reabrirClase} disabled={cargando}>
@@ -306,6 +305,42 @@ export default function ClaseEnVivo({ clase: claseInicial, comision, duracionSeg
           <div className="progreso ok" style={{ marginBottom: 20 }}>
             <div style={{ width: `${porcentaje * 100}%` }} />
           </div>
+
+          {pedidos.length > 0 && (
+            <div className="alerta info" style={{ display: "block", marginBottom: 20 }}>
+              <strong style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Smartphone size={16} /> Cambio de celular
+              </strong>
+              <p style={{ margin: "4px 0 10px" }}>
+                Escanearon con un celular distinto al vinculado. Fijate que el alumno esté en el aula antes de cambiarlo.
+              </p>
+              {errorPedido && <p style={{ margin: "0 0 10px", fontWeight: 600 }}>{errorPedido}</p>}
+              {pedidos.map((p) => (
+                <div key={p.alumno_id} className="fila-lista" style={{ padding: "8px 0" }}>
+                  <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                    <div className="fila-titulo">{p.alumno}</div>
+                    <span className="fila-meta">DNI {p.dni}</span>
+                  </div>
+                  <div className="acciones">
+                    <button
+                      className="btn chico"
+                      disabled={resolviendo === p.alumno_id}
+                      onClick={() => resolverPedido(p, "liberar")}
+                    >
+                      Liberar y dar presente
+                    </button>
+                    <button
+                      className="btn chico ghost"
+                      disabled={resolviendo === p.alumno_id}
+                      onClick={() => resolverPedido(p, "descartar")}
+                    >
+                      Descartar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {padron.length === 0 ? (
             <div className="vacio">
@@ -349,6 +384,11 @@ export default function ClaseEnVivo({ clase: claseInicial, comision, duracionSeg
                       </div>
                     </div>
                     <div className="acciones">
+                      {a.celular_nuevo && (
+                        <span className="badge warn" title="Vinculó su celular en esta clase">
+                          <Smartphone size={13} /> Celular nuevo
+                        </span>
+                      )}
                       {a.presente ? (
                         <span className="badge ok">
                           <UserCheck size={13} /> Presente

@@ -239,7 +239,7 @@ begin
         insert into asistencias (clase_id, alumno_id, dni_alumno, nombre_alumno, metodo, registrado_en)
         values (
           v_clase, ins.id, ins.dni, ins.nombre,
-          case when v_r < 0.68 then 'qr' when v_r < 0.95 then 'codigo' else 'manual' end,
+          case when v_r < 0.93 then 'qr' else 'manual' end,
           v_fecha + make_interval(secs => floor(random() * 600)::int)
         );
       end loop;

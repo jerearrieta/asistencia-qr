@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { COOKIE_SESION, verificarSesion, inicioPorRol } from "@/lib/sesion";
+import {
+  COOKIE_DISPOSITIVO,
+  crearCookieDispositivo,
+  dispositivoDeCookie,
+  opcionesCookieDispositivo,
+} from "@/lib/dispositivo";
 
 // Qué roles pueden entrar a cada sección. Lo que no figura acá es público
 // (home, login, registro de asistencia de los alumnos).
@@ -15,8 +21,23 @@ const REGLAS = [
   { prefijo: "/api/auth/password", roles: ["director", "profesor", "alumno"] },
 ];
 
+// La primera vez que un celular abre un QR le damos su cookie de
+// dispositivo. Se agrega también al pedido para que la página la vea ya.
+async function asegurarDispositivo(request) {
+  if (await dispositivoDeCookie(request.cookies.get(COOKIE_DISPOSITIVO)?.value)) {
+    return NextResponse.next();
+  }
+  const valor = await crearCookieDispositivo();
+  request.cookies.set(COOKIE_DISPOSITIVO, valor);
+  const respuesta = NextResponse.next({ request: { headers: request.headers } });
+  respuesta.cookies.set(COOKIE_DISPOSITIVO, valor, opcionesCookieDispositivo());
+  return respuesta;
+}
+
 export async function middleware(request) {
   const { pathname, search } = request.nextUrl;
+  if (pathname.startsWith("/asistencia/")) return asegurarDispositivo(request);
+
   const regla = REGLAS.find(
     (r) => pathname === r.prefijo || pathname.startsWith(`${r.prefijo}/`)
   );
@@ -46,6 +67,7 @@ export async function middleware(request) {
 
 export const config = {
   matcher: [
+    "/asistencia/:path*",
     "/admin/:path*",
     "/api/admin/:path*",
     "/tablero/:path*",

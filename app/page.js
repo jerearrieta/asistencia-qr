@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, BarChart3, GraduationCap, QrCode, ScanLine, ShieldCheck, Users } from "lucide-react";
 import { obtenerSesion } from "@/lib/auth";
@@ -44,17 +43,12 @@ export default async function Home() {
           </div>
           <h2>Soy alumno</h2>
           <p>
-            Escaneá el QR que muestra el profesor o escribí el código de la
-            clase. Con tu DNI también podés ver tu porcentaje de asistencia.
+            Escaneá con la cámara del celular el QR que muestra el profesor.
+            Con tu DNI también podés ver tu porcentaje de asistencia.
           </p>
-          <div className="acciones">
-            <Link className="btn grande" href="/asistencia" style={{ flex: 1 }}>
-              Registrar asistencia
-            </Link>
-            <a className="btn grande secondary" href="/login" style={{ flex: 1 }}>
-              Ver mi asistencia
-            </a>
-          </div>
+          <a className="btn grande secondary" href="/login">
+            Ver mi asistencia
+          </a>
         </div>
       </div>
 
@@ -65,7 +59,7 @@ export default async function Home() {
           </div>
           <div>
             <strong>Sin trampas</strong>
-            El código vence y solo pueden registrarse los alumnos del padrón.
+            El QR cambia cada pocos segundos, cada DNI queda atado a un celular y solo se registran alumnos del padrón.
           </div>
         </div>
         <div className="paso">

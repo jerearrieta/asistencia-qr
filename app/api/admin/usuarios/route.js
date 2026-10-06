@@ -5,7 +5,7 @@ import { exigirRol } from "@/lib/auth";
 import { ROLES } from "@/lib/constantes";
 import { errorDb, faltaDato, leerJson } from "@/lib/respuestas";
 
-const CAMPOS = "id, dni, nombre, rol, carrera_id, carreras(nombre)";
+const CAMPOS = "id, dni, nombre, rol, carrera_id, dispositivo_vinculado_en, carreras(nombre)";
 
 // GET ?rol=alumno&q=texto → hasta 50 usuarios que coinciden por DNI o nombre
 export async function GET(request) {

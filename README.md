@@ -32,17 +32,35 @@ contraseña (la inicial es el mismo DNI; después se cambia desde "Mi cuenta").
 2. El profesor ingresa con su DNI, ve sus comisiones (puede filtrarlas por
    carrera y materia) y toca **"Abrir clase"**.
 3. Se abre la toma de asistencia con expiración, y en
-   `/profesor/clase/[id]` se muestra el **QR**, el **código en grande**, el
-   contador y la lista del padrón con **presentes y ausentes** en vivo. El
-   profesor puede marcar presente a mano a quien no tenga celular.
-   El QR y el código **rotan cada 1 minuto** (`QR_ROTACION_SEGUNDOS`):
-   una foto reenviada por WhatsApp deja de servir enseguida. Se aceptan el
-   código actual y el anterior, así que cada código vale entre 1 y 2
-   minutos. Quien abre un QR vigente tiene 3 minutos para completar el DNI.
-4. El alumno escanea el QR (o entra a `/asistencia` y tipea el código) e
-   ingresa **solo su DNI**. El backend valida que la clase esté abierta, que
-   el código sea correcto y no haya expirado, que el DNI esté en el **padrón
-   de esa comisión** y que no se haya registrado ya.
+   `/profesor/clase/[id]` se muestra el **QR**, el contador y la lista del
+   padrón con **presentes y ausentes** en vivo. El profesor puede marcar
+   presente a mano a quien no tenga celular.
+   El QR **rota cada 30 segundos** (`QR_ROTACION_SEGUNDOS`): una foto
+   reenviada por WhatsApp deja de servir enseguida. Se aceptan el QR actual
+   y el anterior, así que cada uno vale entre 30 y 60 segundos. Quien abre
+   un QR vigente tiene 60 segundos para completar el DNI.
+4. El alumno escanea el QR con la cámara e ingresa **solo su DNI** (la
+   asistencia se registra únicamente por QR). El backend valida que la
+   clase esté abierta, que el QR no haya vencido, que el DNI esté en el
+   **padrón de esa comisión** y que no se haya registrado ya.
+
+### Controles contra el registro de alumnos ausentes
+
+- **Un celular por alumno**: al abrir un QR, el servidor le da al celular
+  una cookie firmada (`lib/dispositivo.js`). La primera vez que un DNI
+  registra asistencia queda vinculado a ese celular, y un celular solo
+  puede estar vinculado a un alumno. Así, el que está en el aula no puede
+  anotar a un compañero desde su teléfono, ni desde otra pestaña o
+  navegador.
+- **Cambio de celular**: si un alumno escanea con otro celular, se le pide
+  que avise al profesor y en la clase en vivo aparece el pedido. Con
+  "Liberar y dar presente" el DNI pasa al celular nuevo. El director
+  también puede liberar el celular desde Administración → Usuarios.
+- **Celular nuevo**: en la lista de la clase se marca a quien vinculó su
+  celular en esa clase. Pasadas las primeras clases debería ser raro, así
+  que varios juntos son una señal para revisar.
+- **El permiso del QR está atado al celular** que lo escaneó: copiar el
+  link a otro navegador no sirve.
 5. Carrera, materia, año, división, turno, modalidad y profesor **no los
    carga el alumno**: salen de la comisión de la clase. Así no hay errores de
    tipeo y los datos del tablero son confiables.
@@ -73,7 +91,8 @@ modalidad. Cada filtro muestra solo las opciones compatibles con los demás
 - Inscriptos por carrera y % de asistencia por carrera.
 - Evolución semanal de la asistencia.
 - % de asistencia por turno, por modalidad y por año de cursado.
-- Cómo se registra la asistencia (QR, código o manual).
+- Cómo se registra la asistencia (QR o manual; "Código" solo aparece si hay
+  registros anteriores con código).
 - Listado de alumnos en riesgo y ranking de comisiones.
 
 El director ve todo; cada profesor ve solo sus comisiones.
@@ -91,7 +110,7 @@ variables CSS (colores, espaciados, radios, sombras y tiempos de animación):
   horizontal.
 - **Microinteracciones sutiles**: botones que responden al toque,
   transiciones de 150–250ms, indicador "en vivo" en las clases abiertas y
-  cuenta regresiva del código. Se respeta la preferencia de "reducir
+  cuenta regresiva del QR. Se respeta la preferencia de "reducir
   movimiento" del sistema.
 - Tipografía **Inter** (`next/font`) e íconos de **lucide-react**.
 
@@ -143,15 +162,19 @@ asistencia-qr/
 - **carrera_materias**: carrera_id, materia_id, anio (una materia puede
   estar en varias carreras, en distinto año)
 - **usuarios**: id, dni (único), nombre, rol (`director`/`profesor`/`alumno`),
-  password_hash, carrera_id (alumnos)
+  password_hash, carrera_id (alumnos), dispositivo_id (celular vinculado,
+  único), dispositivo_vinculado_en
 - **comisiones**: id, carrera_id, materia_id, division, turno, modalidad,
   profesor_id
 - **inscripciones** (padrón): comision_id, alumno_id
 - **clases**: id, comision_id, fecha, estado (`abierta`/`cerrada`), token,
   token_expira_en
 - **asistencias**: id, clase_id, alumno_id, dni_alumno, nombre_alumno,
-  metodo (`qr`/`codigo`/`manual`), dispositivo_id, registrado_en — con
+  metodo (`qr`/`manual`; `codigo` solo en registros anteriores),
+  dispositivo_id, vinculo_nuevo, registrado_en — con
   `UNIQUE(clase_id, dni_alumno)` y `UNIQUE(clase_id, dispositivo_id)`.
+- **pedidos_cambio_celular**: clase_id, alumno_id, dispositivo_id,
+  creado_en (pedidos que el profesor resuelve en la clase en vivo)
 
 Vistas para el tablero y los CSV: `v_detalle_asistencia` (una fila por
 alumno del padrón y clase, presente o ausente), `v_resumen_comision`,
@@ -169,6 +192,8 @@ Las tablas tienen RLS activado sin políticas y las vistas usan
 1. Andá a [supabase.com](https://supabase.com), creá un proyecto nuevo.
 2. En el **SQL Editor**, pegá y ejecutá el contenido de
    `supabase/schema.sql`. ⚠️ Borra las tablas anteriores (arranca de cero).
+   Si ya tenés la base andando con datos, en vez de eso ejecutá
+   `supabase/migracion-antifraude.sql`, que solo agrega lo nuevo.
 3. (Opcional, recomendado para la demo) Ejecutá `supabase/seed.sql` para
    cargar datos ficticios: 10 carreras, sus materias, ~110 comisiones,
    20 profesores, ~880 alumnos y 12 semanas de asistencias.
@@ -220,8 +245,8 @@ Para ver qué DNIs están en el padrón de una comisión: `/admin` → Padrón.
 ### 5. Probar el flujo completo
 
 - Entrá como profesor (`20000001`) y tocá **"Abrir clase"** en una comisión.
-- Abrí `/asistencia/<claseId>/<token>` en otra pestaña (o escaneá el QR
-  con el celular) y registrate con un DNI del padrón de esa comisión.
+- Escaneá el QR con el celular (o abrí el link del QR en otra pestaña) y
+  registrate con un DNI del padrón de esa comisión.
 - Mirá cómo pasa de "Ausente" a "Presente" en el panel del profesor.
 - Entrá como director (`11111111`) y mirá el tablero.
 
@@ -238,18 +263,9 @@ Para ver qué DNIs están en el padrón de una comisión: `/admin` → Padrón.
 
 ## Qué hacer si el curso no tiene computadora ni proyector
 
-Ya está resuelto en el diseño: además del QR, la pantalla del profesor
-siempre muestra el **código en texto grande**. El profesor puede:
-
-- Mostrar esa pantalla desde **su propio celular** (no hace falta
-  proyector), o
-- Simplemente **dictarlo**, y los alumnos lo tipean en `/asistencia` desde
-  el suyo (el código dictado vale entre 1 y 2 minutos).
-- Para **escribirlo en el pizarrón** conviene un código fijo:
-  `QR_ROTACION_SEGUNDOS=0`.
-
-Ambos caminos escriben en la misma tabla `asistencias`, con el campo
-`metodo` (`qr` o `codigo`) para distinguir cómo se registró cada uno.
+El profesor puede mostrar la pantalla de la clase desde **su propio
+celular** (no hace falta proyector) y los alumnos escanean el QR desde ahí.
+A quien no tenga celular o cámara, el profesor lo marca presente a mano.
 
 ## Limitaciones actuales / próximos pasos
 
@@ -259,6 +275,8 @@ Ambos caminos escriben en la misma tabla `asistencias`, con el campo
 - **Datos de prueba ficticios**: nombres, DNIs y asistencias de `seed.sql`
   son inventados para poder mostrar el tablero.
 - **Geolocalización/red del aula** (opcional): exigir que el registro se
-  haga desde una IP o rango de GPS específico.
+  haga desde una IP o rango de GPS específico. Es lo único que frena que
+  alguien transmita el QR en vivo (por ejemplo, por videollamada) a un
+  compañero que no está.
 - **Recuperar contraseña por mail**: hoy la restablece el director (vuelve
   a ser el DNI).

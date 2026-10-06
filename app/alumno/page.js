@@ -29,10 +29,10 @@ export default async function AlumnoPage() {
         <div>
           <h1>Mi asistencia</h1>
           <p>Necesitás al menos {minimo}% de asistencia en cada materia para mantener la regularidad.</p>
+          <p className="texto-suave" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <QrCode size={15} /> Para registrar tu asistencia, escaneá con la cámara el QR que muestra el profesor.
+          </p>
         </div>
-        <a className="btn" href="/asistencia">
-          <QrCode size={16} /> Registrar asistencia
-        </a>
       </div>
 
       {materias.length === 0 ? (
