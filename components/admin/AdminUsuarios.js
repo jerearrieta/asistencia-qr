@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, Pencil, Search, Trash2 } from "lucide-react";
+import { KeyRound, Pencil, Search, Smartphone, Trash2 } from "lucide-react";
 import { llamarApi } from "./api";
 import { ROLES, capitalizar, iniciales } from "@/lib/constantes";
 
@@ -62,6 +62,20 @@ export default function AdminUsuarios({ carreras }) {
         ? { ok: true, texto: `La contraseña de ${u.nombre} ahora es ${u.dni}` }
         : { ok: false, texto: data.error }
     );
+  }
+
+  // El alumno cambió de celular: el próximo con el que escanee queda vinculado
+  async function liberarCelular(u) {
+    if (!window.confirm(`¿Liberar el celular de ${u.nombre}? El próximo celular con el que registre asistencia quedará vinculado.`)) return;
+    const { ok, data } = await llamarApi(`/api/admin/usuarios/${u.id}`, "PATCH", {
+      liberarCelular: true,
+    });
+    setMensaje(
+      ok
+        ? { ok: true, texto: `Se liberó el celular de ${u.nombre}` }
+        : { ok: false, texto: data.error }
+    );
+    cargar();
   }
 
   async function eliminar(u) {
@@ -210,6 +224,15 @@ export default function AdminUsuarios({ carreras }) {
                       <button className="btn ghost chico" onClick={() => restablecer(u)} title="La contraseña vuelve a ser el DNI">
                         <KeyRound size={14} /> Restablecer clave
                       </button>
+                      {u.rol === "alumno" && u.dispositivo_vinculado_en && (
+                        <button
+                          className="btn ghost chico"
+                          onClick={() => liberarCelular(u)}
+                          title="Para cuando el alumno cambia de celular"
+                        >
+                          <Smartphone size={14} /> Liberar celular
+                        </button>
+                      )}
                       <button className="btn danger-suave chico icono" onClick={() => eliminar(u)} title="Eliminar" aria-label="Eliminar">
                         <Trash2 size={15} />
                       </button>

@@ -7,7 +7,7 @@
 create extension if not exists "pgcrypto";
 
 drop view if exists v_resumen_semanal, v_resumen_alumno, v_resumen_comision, v_detalle_asistencia cascade;
-drop table if exists asistencias, clases, inscripciones, comisiones,
+drop table if exists pedidos_cambio_celular, asistencias, clases, inscripciones, comisiones,
   carrera_materias, materias, usuarios, carreras, cursos cascade;
 
 -- ---------------------------------------------------------------------------
@@ -47,6 +47,10 @@ create table usuarios (
   rol text not null check (rol in ('director', 'profesor', 'alumno')),
   password_hash text not null,
   carrera_id uuid references carreras(id) on delete set null, -- solo alumnos
+  -- Celular del alumno: se vincula la primera vez que registra asistencia.
+  -- Un celular solo puede estar vinculado a un alumno.
+  dispositivo_id text unique,
+  dispositivo_vinculado_en timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -99,6 +103,8 @@ create index idx_clases_token on clases(token);
 
 -- Registro transaccional de asistencia. Un alumno no puede registrarse
 -- dos veces en la misma clase, ni dos alumnos desde el mismo dispositivo.
+-- metodo 'codigo' queda solo para registros anteriores: hoy es QR o manual.
+-- vinculo_nuevo marca que el alumno vinculó su celular en esa clase.
 create table asistencias (
   id uuid primary key default gen_random_uuid(),
   clase_id uuid not null references clases(id) on delete cascade,
@@ -107,12 +113,23 @@ create table asistencias (
   nombre_alumno text,
   metodo text not null default 'qr' check (metodo in ('qr', 'codigo', 'manual')),
   dispositivo_id text,
+  vinculo_nuevo boolean not null default false,
   registrado_en timestamptz not null default now(),
   unique (clase_id, dni_alumno),
   unique (clase_id, dispositivo_id)
 );
 
 create index idx_asistencias_clase on asistencias(clase_id);
+
+-- Un alumno escaneó con un celular distinto al vinculado: el profesor lo
+-- ve en la clase en vivo y decide si se lo cambia.
+create table pedidos_cambio_celular (
+  clase_id uuid not null references clases(id) on delete cascade,
+  alumno_id uuid not null references usuarios(id) on delete cascade,
+  dispositivo_id text not null,
+  creado_en timestamptz not null default now(),
+  primary key (clase_id, alumno_id)
+);
 
 -- ---------------------------------------------------------------------------
 -- Vistas para el tablero y los CSV
@@ -242,6 +259,7 @@ alter table comisiones enable row level security;
 alter table inscripciones enable row level security;
 alter table clases enable row level security;
 alter table asistencias enable row level security;
+alter table pedidos_cambio_celular enable row level security;
 
 revoke all on v_detalle_asistencia, v_resumen_comision, v_resumen_alumno,
   v_resumen_semanal from anon, authenticated;

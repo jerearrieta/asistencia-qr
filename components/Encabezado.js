@@ -27,7 +27,6 @@ const ENLACES = {
   ],
   alumno: [
     ["/alumno", "Mi asistencia", BarChart3],
-    ["/asistencia", "Registrar asistencia", QrCode],
   ],
 };
 

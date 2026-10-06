@@ -38,5 +38,31 @@ export async function GET(request, { params }) {
     return respuestaCsv(padron, COLUMNAS_DETALLE, nombre);
   }
 
-  return NextResponse.json({ clase, comision, padron });
+  // Alumnos que vincularon el celular en esta clase y pedidos de cambio de
+  // celular pendientes: el profesor los ve en la clase en vivo.
+  const [{ data: nuevos }, { data: pedidos }] = await Promise.all([
+    supabaseAdmin
+      .from("asistencias")
+      .select("alumno_id")
+      .eq("clase_id", claseId)
+      .eq("vinculo_nuevo", true),
+    supabaseAdmin
+      .from("pedidos_cambio_celular")
+      .select("alumno_id, creado_en, usuarios(dni, nombre)")
+      .eq("clase_id", claseId)
+      .order("creado_en"),
+  ]);
+  const conCelularNuevo = new Set((nuevos || []).map((n) => n.alumno_id));
+
+  return NextResponse.json({
+    clase,
+    comision,
+    padron: padron.map((a) => ({ ...a, celular_nuevo: conCelularNuevo.has(a.alumno_id) })),
+    pedidos: (pedidos || []).map((p) => ({
+      alumno_id: p.alumno_id,
+      dni: p.usuarios?.dni,
+      alumno: p.usuarios?.nombre,
+      creado_en: p.creado_en,
+    })),
+  });
 }

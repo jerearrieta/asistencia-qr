@@ -1,16 +1,29 @@
+import { cookies } from "next/headers";
 import { AlertCircle, ScanLine } from "lucide-react";
 import FormularioAsistencia from "@/components/FormularioAsistencia";
 import { obtenerSesion } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { claseEstaAbierta } from "@/lib/estadoClase";
 import { GRACIA_QR, codigoValido, firmarPase } from "@/lib/codigoRotativo";
+import { COOKIE_DISPOSITIVO, dispositivoDeCookie } from "@/lib/dispositivo";
 
 export const dynamic = "force-dynamic";
 
-export default async function AsistenciaQrPage({ params }) {
-  // Si el alumno ya inició sesión, le completamos el DNI
+// DNI a precompletar: el del celular ya vinculado o, si no, el de la sesión.
+async function dniSugerido(dispositivoId) {
+  const { data } = await supabaseAdmin
+    .from("usuarios")
+    .select("dni")
+    .eq("dispositivo_id", dispositivoId)
+    .maybeSingle();
+  if (data) return data.dni;
   const sesion = await obtenerSesion();
-  const dniInicial = sesion?.rol === "alumno" ? sesion.dni : "";
+  return sesion?.rol === "alumno" ? sesion.dni : "";
+}
+
+export default async function AsistenciaQrPage({ params }) {
+  // La cookie la pone el middleware la primera vez que el celular abre un QR
+  const dispositivoId = await dispositivoDeCookie(cookies().get(COOKIE_DISPOSITIVO)?.value);
 
   // El QR rota cada pocos segundos: se valida al abrir la página y, si es
   // vigente, se entrega un pase para que no venza mientras se tipea el DNI.
@@ -21,7 +34,8 @@ export default async function AsistenciaQrPage({ params }) {
     .maybeSingle();
 
   let problema = null;
-  if (!clase) problema = "No se encontró la clase de este QR.";
+  if (!dispositivoId) problema = "Tu navegador bloqueó las cookies. Activalas y volvé a escanear el QR.";
+  else if (!clase) problema = "No se encontró la clase de este QR.";
   else if (!claseEstaAbierta(clase)) problema = "La toma de asistencia de esta clase ya está cerrada.";
   else if (!codigoValido(clase, params.token, GRACIA_QR))
     problema = "Este QR ya cambió. Escaneá el que está en la pantalla del profesor ahora.";
@@ -44,8 +58,8 @@ export default async function AsistenciaQrPage({ params }) {
         ) : (
           <FormularioAsistencia
             claseId={clase.id}
-            pase={firmarPase(clase.id)}
-            dniInicial={dniInicial}
+            pase={firmarPase(clase.id, dispositivoId)}
+            dniInicial={await dniSugerido(dispositivoId)}
           />
         )}
       </div>

@@ -150,15 +150,18 @@ export default function Tablero({ comisiones, alumnos, semanal, esDirector }) {
         agrupar(filtradas, (c) => c.anio).sort((a, b) => a.clave - b.clave),
         (g) => `${g.clave}° año`
       ),
+      // "Código" ya no se usa: solo aparece si hay registros viejos con código
       metodos: [
         ["QR", "presentes_qr", "var(--series-1)"],
-        ["Código", "presentes_codigo", "var(--series-2)"],
+        ["Código (anterior)", "presentes_codigo", "var(--series-2)"],
         ["Manual (profesor)", "presentes_manual", "var(--series-3)"],
-      ].map(([etiqueta, campo, color]) => ({
-        etiqueta,
-        color,
-        valor: filtradas.reduce((s, c) => s + Number(c[campo]), 0),
-      })),
+      ]
+        .map(([etiqueta, campo, color]) => ({
+          etiqueta,
+          color,
+          valor: filtradas.reduce((s, c) => s + Number(c[campo]), 0),
+        }))
+        .filter((m) => m.etiqueta !== "Código (anterior)" || m.valor > 0),
     };
   }, [filtradas, alumnos, semanal]);
 

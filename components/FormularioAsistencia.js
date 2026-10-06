@@ -1,17 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Check, IdCard } from "lucide-react";
-import { obtenerDispositivoId } from "@/lib/dispositivo";
+import { AlertCircle, Check, IdCard, Smartphone } from "lucide-react";
 
-export default function FormularioAsistencia({
-  claseId,
-  pase,
-  pedirCodigo,
-  dniInicial,
-}) {
+export default function FormularioAsistencia({ claseId, pase, dniInicial }) {
   const [dni, setDni] = useState(dniInicial || "");
-  const [codigo, setCodigo] = useState("");
   const [estado, setEstado] = useState("idle");
   const [mensaje, setMensaje] = useState("");
   const [nombre, setNombre] = useState("");
@@ -21,22 +14,16 @@ export default function FormularioAsistencia({
     setEstado("enviando");
     setMensaje("");
 
+    // El celular se identifica con su cookie, que el navegador manda solo
     const res = await fetch("/api/asistencias/registrar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        claseId: claseId || undefined,
-        token: pedirCodigo ? codigo.trim().toUpperCase() : undefined,
-        pase,
-        dni,
-        metodo: pedirCodigo ? "codigo" : "qr",
-        dispositivoId: obtenerDispositivoId(),
-      }),
+      body: JSON.stringify({ claseId, pase, dni }),
     });
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      setEstado("error");
+      setEstado(data.pedidoCambio ? "pedido" : "error");
       setMensaje(data.error || "No se pudo registrar la asistencia");
       return;
     }
@@ -57,25 +44,17 @@ export default function FormularioAsistencia({
     );
   }
 
+  if (estado === "pedido") {
+    return (
+      <div className="alerta info" role="status">
+        <Smartphone size={18} />
+        {mensaje}
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={enviar}>
-      {pedirCodigo && (
-        <label className="campo">
-          <span>Código de la clase</span>
-          <input
-            className="input-codigo"
-            placeholder="ABC123"
-            value={codigo}
-            onChange={(e) => setCodigo(e.target.value.toUpperCase())}
-            maxLength={6}
-            autoComplete="off"
-            autoCapitalize="characters"
-            spellCheck={false}
-            autoFocus
-            required
-          />
-        </label>
-      )}
       <label className="campo">
         <span>Tu DNI</span>
         <div className="campo-icono">
@@ -85,7 +64,7 @@ export default function FormularioAsistencia({
             inputMode="numeric"
             value={dni}
             onChange={(e) => setDni(e.target.value)}
-            autoFocus={!pedirCodigo}
+            autoFocus={!dniInicial}
             required
           />
         </div>

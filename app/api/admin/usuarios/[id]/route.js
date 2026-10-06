@@ -5,8 +5,9 @@ import { exigirRol } from "@/lib/auth";
 import { ROLES } from "@/lib/constantes";
 import { errorDb, faltaDato, leerJson } from "@/lib/respuestas";
 
-// PATCH { nombre, rol, carreraId } o { restablecerPassword: true }
-// (la contraseña vuelve a ser el DNI)
+// PATCH { nombre, rol, carreraId }, { restablecerPassword: true } (la
+// contraseña vuelve a ser el DNI) o { liberarCelular: true } (el alumno
+// cambió de celular: el próximo con el que registre queda vinculado)
 export async function PATCH(request, { params }) {
   const { sesion, error: sinPermiso } = await exigirRol("director");
   if (sinPermiso) return sinPermiso;
@@ -24,6 +25,8 @@ export async function PATCH(request, { params }) {
   let cambios;
   if (body.restablecerPassword) {
     cambios = { password_hash: await bcrypt.hash(usuario.dni, 10) };
+  } else if (body.liberarCelular) {
+    cambios = { dispositivo_id: null, dispositivo_vinculado_en: null };
   } else {
     const nombre = (body.nombre || "").trim();
     if (!nombre) return faltaDato("El nombre es obligatorio");

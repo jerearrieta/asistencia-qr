@@ -958,22 +958,6 @@ label.check select {
   background-position: right 8px center;
 }
 
-.input-codigo {
-  height: 60px;
-  text-align: center;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 26px !important;
-  font-weight: 650;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  border-radius: var(--radius);
-}
-
-.input-codigo::placeholder {
-  letter-spacing: 0.3em;
-  font-weight: 500;
-}
-
 /* ==========================================================================
    Mensajes y estados
    ========================================================================== */
@@ -1564,26 +1548,6 @@ td.num {
   display: block;
   width: min(240px, 62vw);
   height: auto;
-}
-
-.codigo-caja {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--s-2);
-  padding: var(--s-3);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  border: 1px dashed var(--border-strong);
-}
-
-.token-grande {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: clamp(32px, 7vw, 40px);
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  padding-left: 0.18em;
-  color: var(--text);
 }
 
 .cuenta-regresiva {
