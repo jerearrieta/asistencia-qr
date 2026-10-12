@@ -10,6 +10,7 @@ import {
   BarrasHorizontales,
   Indicador,
   LineaSemanal,
+  Torta,
   formatoNum,
   formatoPct,
 } from "./Graficos";
@@ -307,14 +308,36 @@ export default function Tablero({ comisiones, alumnos, semanal, esDirector }) {
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-head">
+      <div className="viz-grilla-2">
+        <div className="card">
+          <div className="card-head">
+            <div>
+              <h3>Presentes y ausentes</h3>
+              <p>Reparto del total esperado en las comisiones filtradas</p>
+            </div>
+          </div>
+          <Torta
+            unidad="asistencias"
+            vacio="Todavía no hay clases en este período."
+            segmentos={[
+              { etiqueta: "Presentes", valor: datos.presentes, color: "var(--series-3)" },
+              {
+                etiqueta: "Ausentes",
+                valor: Math.max(0, datos.esperados - datos.presentes),
+                color: "var(--series-2)",
+              },
+            ]}
+          />
+        </div>
+        <div className="card">
+          <div className="card-head">
             <div>
               <h3>Cómo registran la asistencia</h3>
               <p>Proporción de registros por método</p>
             </div>
           </div>
-        <BarraApilada segmentos={datos.metodos} />
+          <BarraApilada segmentos={datos.metodos} />
+        </div>
       </div>
 
       <div className="card">
