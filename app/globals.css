@@ -1859,6 +1859,34 @@ td.num {
   margin-right: 6px;
 }
 
+.viz-torta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+}
+
+.viz-torta svg {
+  width: 180px;
+  height: 180px;
+  flex-shrink: 0;
+}
+
+.viz-torta-porcion {
+  stroke: var(--surface);
+  stroke-width: 2;
+  transition: filter var(--dur-fast) ease;
+}
+
+.viz-torta-porcion:hover {
+  filter: brightness(0.92);
+}
+
+.viz-leyenda-columna {
+  flex-direction: column;
+  margin-top: 0;
+}
+
 .viz-celda-barra {
   display: flex;
   align-items: center;

@@ -283,3 +283,75 @@ export function BarraApilada({ segmentos }) {
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Gráfico de torta con leyenda al costado
+// segmentos: [{ etiqueta, valor, color }]
+// ---------------------------------------------------------------------------
+export function Torta({ segmentos, unidad = "registros", vacio }) {
+  const { mostrar, ocultar, nodo } = useTooltip();
+  const total = segmentos.reduce((s, x) => s + x.valor, 0);
+  if (!total) return <p className="texto-suave">{vacio || "Sin registros"}</p>;
+
+  const r = 90;
+  const c = 100;
+  const punto = (fraccion) => {
+    const ang = fraccion * 2 * Math.PI - Math.PI / 2;
+    return [c + r * Math.cos(ang), c + r * Math.sin(ang)];
+  };
+
+  let acumulado = 0;
+  const porciones = segmentos
+    .filter((s) => s.valor > 0)
+    .map((s) => {
+      const desde = acumulado / total;
+      acumulado += s.valor;
+      const hasta = acumulado / total;
+      let d;
+      if (hasta - desde >= 1) {
+        // Un solo segmento: círculo completo (un arco de 360° no se dibuja)
+        d = `M${c},${c - r} A${r},${r} 0 1 1 ${c},${c + r} A${r},${r} 0 1 1 ${c},${c - r} Z`;
+      } else {
+        const [x1, y1] = punto(desde);
+        const [x2, y2] = punto(hasta);
+        d = `M${c},${c} L${x1},${y1} A${r},${r} 0 ${hasta - desde > 0.5 ? 1 : 0} 1 ${x2},${y2} Z`;
+      }
+      return { ...s, d };
+    });
+
+  return (
+    <div className="viz-torta">
+      <svg viewBox="0 0 200 200" role="img" aria-label={segmentos.map((s) => `${s.etiqueta} ${formatoPct(s.valor / total)}`).join(", ")}>
+        {porciones.map((p) => (
+          <path
+            key={p.etiqueta}
+            d={p.d}
+            fill={p.color}
+            className="viz-torta-porcion"
+            onMouseMove={(e) =>
+              mostrar(
+                e,
+                <>
+                  <strong>{p.etiqueta}</strong>
+                  <br />
+                  {formatoNum(p.valor)} {unidad} ({formatoPct(p.valor / total)})
+                </>
+              )
+            }
+            onMouseLeave={ocultar}
+          />
+        ))}
+      </svg>
+      <div className="viz-leyenda viz-leyenda-columna">
+        {segmentos.map((s) => (
+          <span key={s.etiqueta}>
+            <i style={{ background: s.color }} aria-hidden="true" />
+            {s.etiqueta} <strong>{formatoPct(s.valor / total)}</strong>
+            <span className="texto-suave"> · {formatoNum(s.valor)}</span>
+          </span>
+        ))}
+      </div>
+      {nodo}
+    </div>
+  );
+}
